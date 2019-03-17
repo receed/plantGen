@@ -46,6 +46,7 @@ public class Main implements GLEventListener {
     static Leaf[][] highestLeaf = new Leaf[bufferSize][bufferSize];
     static final int[][] adj = {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0},
             {-1, -1}, {0, -1}, {1, -1}, {1, 0}};
+    static final int[][] adj3d = {{0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}};
     static Random random = new Random();
     static double cameraDistance = 0;
     static double inf = Double.POSITIVE_INFINITY;
@@ -55,6 +56,10 @@ public class Main implements GLEventListener {
     static double sunAngle = 0;
     static Vector3 sunAxis = new Vector3(0, 0, 1);
     TextRenderer renderer;
+    static int waterMapSize = 1 << 4, waterMapDepth = 1 << 4;
+    static double waterSize = 4, waterDepth = 4;
+    static double[][][] waterMap = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
+    static double[][][] waterMapOld = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
 
 
     private void tetraedr(GL2 gl){
@@ -149,19 +154,19 @@ public class Main implements GLEventListener {
         gl.glEnd();
     }
 
-    static void sphere(GL2 gl) {
+    static void sphere(GL2 gl, int num) {
         double r1,r2,xi1,xi2,h1,h2;
-        for (int j = -9,i ; j < 9 ; j++) {
-            xi1 = Math.PI * j / 18;
-            xi2 =Math.PI * (j + 1) / 18;
+        for (int j = -num + 1,i ; j < num - 1 ; j++) {
+            xi1 = Math.PI * j / (num * 2 - 2);
+            xi2 =Math.PI * (j + 1) / (num * 2 - 2);
             r1 =0.5 * Math.cos(xi1);
             r2 =0.5 * Math.cos(xi2);
             h1 =0.5 * Math.sin(xi1);
             h2 =0.5 * Math.sin(xi2);
             gl.glBegin(gl.GL_QUAD_STRIP);
-            for (i =0 ; i <= 20 ; i++) {
-                gl.glVertex3d(r1 * Math.cos(2 * Math.PI * i / 20), r1 * Math.sin(2 * Math.PI * i / 20), h1);
-                gl.glVertex3d(r2 * Math.cos(2 * Math.PI * i / 20), r2 * Math.sin(2 * Math.PI * i / 20), h2);
+            for (i =0 ; i <= num * 2 ; i++) {
+                gl.glVertex3d(r1 * Math.cos(2 * Math.PI * i / num / 2), r1 * Math.sin(2 * Math.PI * i / num / 2), h1);
+                gl.glVertex3d(r2 * Math.cos(2 * Math.PI * i / num / 2), r2 * Math.sin(2 * Math.PI * i / num / 2), h2);
             }
             gl.glEnd();
         }
@@ -346,8 +351,8 @@ public class Main implements GLEventListener {
         for (Plant plant : plants)
             for (Leaf leaf : plant.leaves) {
                 for (int i = 1; i < leaf.joints.size() - 1; i++)
-                fillTriangle(rot.mul(leaf.joints.get(0).pos), rot.mul(leaf.joints.get(i).pos), rot.mul(leaf.joints.get(i + 1).pos),
-                        leaf, minX, maxX, minY, maxY);
+                    fillTriangle(rot.mul(leaf.joints.get(0).pos), rot.mul(leaf.joints.get(i).pos), rot.mul(leaf.joints.get(i + 1).pos),
+                            leaf, minX, maxX, minY, maxY);
             }
         double lightPerCell = density * (maxX - minX) * (maxY - minY) / Math.pow(bufferSize, 2);
         for (int i = 0; i < bufferSize; i++)
@@ -356,8 +361,77 @@ public class Main implements GLEventListener {
                     highestLeaf[i][j].light += lightPerCell;
     }
 
+    public static boolean insideWaterMap(int i, int j, int k) {
+        return i >= 0 && i <= waterMapSize && j >= 0 && j <= waterMapSize && k >= 0 && k <= waterMapDepth;
+    }
+    static void genWater() {
+        int a[] = new int[5];
+        double r = 0.02, randomWeight = 1;
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
+                for (int k = 0; k < 2; k++)
+                    waterMap[i][j][k] = random.nextDouble() * r;
+        for (int d = waterMapSize / 2; d > 0; d /= 2) {
+            for (int i = d; i < waterMapSize; i += 2 * d)
+                for (int j = d; j < waterMapSize; j += 2 * d)
+                    for (int k = d; k < waterMapDepth; k += 2 * d) {
+                        double sum = 0;
+                        for (int di = -1; di <= 1; di += 2)
+                            for (int dj = -1; dj <= 1; dj += 2)
+                                for (int dk = -1; dk <= 1; dk += 2)
+                                    sum += waterMap[i + di * d][j + dj * d][k + dk * d];
+                        waterMap[i][j][k] = (sum + random.nextDouble() * r * randomWeight) / (8 + randomWeight);
+                    }
+            for (int i = 0; i <= waterMapSize; i += d)
+                for (int j = 0; j <= waterMapSize; j += d)
+                    for (int k = (i / d % 2 == j / d % 2 ? d : 0); k <= waterMapDepth; k += 2 * d) {
+                        double sum = 0, cnt = 0;
+                        for (int l = 0; l < 6; l++) {
+                            int ni = i + adj3d[l][0] * d, nj = j + adj3d[l][1] * d, nk = k + adj3d[l][2] * d;
+                            if (insideWaterMap(ni, nj, nk)) {
+                                sum += waterMap[i][j][k];
+                                cnt++;
+                            }
+                        }
+                        waterMap[i][j][k] = (sum + random.nextDouble() * r * randomWeight) / (cnt + randomWeight);
+                    }
+        }
+    }
+
+    public void drawWater(GL2 gl) {
+        double step = waterSize / waterMapSize, depthStep = waterDepth / waterMapDepth;
+        gl.glColor4d(0, 0, 1, 0.8);
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                for (int k = 0; k <= waterMapDepth; k++) {
+                    gl.glPushMatrix();
+                    gl.glTranslated((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
+                    double r = Math.pow(waterMap[i][j][k] / (Math.PI * 4 / 3), 1.0 / 3);
+                    gl.glScaled(r, r, r);
+                    sphere(gl, 4);
+                    gl.glPopMatrix();
+                }
+    }
+
+    void flowWater() {
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                System.arraycopy(waterMap[i][j], 0, waterMapOld[i][j], 0, waterMapDepth + 1);
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                for (int k = 0; k <= waterMapDepth; k++)
+                    for (int l = 0; l < 6; l++) {
+                        int ni = i + adj3d[l][0], nj = j + adj3d[l][1], nk = k + adj3d[l][2];
+                        if (insideWaterMap(ni, nj, nk)) {
+                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * 0.009;
+                            waterMap[i][j][k] -= flow;
+                            waterMap[ni][nj][nk] += flow;
+                        }
+                    }
+    }
+
     @Override
-    public void display( GLAutoDrawable drawable ) {
+    public void display( GLAutoDrawable drawable) {
 
         final GL2 gl = drawable.getGL().getGL2();
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
@@ -391,16 +465,19 @@ public class Main implements GLEventListener {
         time++;
 //        plant.root.genLeaves(0.002, null, plant, random);
         plant.root.dfs(time, gl);
+        plant.root.absorb();
+        flowWater();
 //        ball.setSpeed(ballX, ballZ);
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));
 //        System.out.println(ball.pos.x + " " + ball.pos.y + " " + ball.pos.z);
+        drawWater(gl);
         skybox(gl);
         getLighting(plants, sunAxis, sunAngle, 1);
         gl.glPushMatrix();
         gl.glTranslated(sunDir.x, sunDir.y, sunDir.z);
         gl.glScaled(0.4, 0.4, 0.4);
         gl.glColor3d(0.8, 1, 1);
-        sphere(gl);
+        sphere(gl, 10);
         gl.glPopMatrix();
         renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
         renderer.setColor(0, 1, 0.4f, 0.9f);
@@ -488,6 +565,7 @@ public class Main implements GLEventListener {
             e.printStackTrace();
         }
         genLandscape();
+        genWater();
         plants.add(plant);
         plant.root.genLeaves(1, null, plant, random);
         plant.root.genRoots(1, random);

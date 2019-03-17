@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class Joint {
+    double absorbLength = 0.1, absorbRate = 0.1;
     Vector3 pos;
     long visited = 0;
+    double water = 0;
     ArrayList<Leaf> leaves = new ArrayList<>();
     ArrayList<Edge> edges = new ArrayList<>();
 
@@ -57,13 +59,13 @@ public class Joint {
         double nprob = prob;
         while (random.nextDouble() < nprob) {
             genLeaf(plant, random);
-            nprob *= 0.99;
+            nprob *= 0.97;
         }
         for (Leaf leaf : leaves)
             if (leaf != parent)
                 for (Joint joint : leaf.joints)
                     if (joint != this)
-                        joint.genLeaves(prob * 0.3, leaf, plant, random);
+                        joint.genLeaves(prob * 0.25, leaf, plant, random);
     }
     void genRoots(double prob, Random random) {
         double nprob = prob;
@@ -75,6 +77,26 @@ public class Joint {
             nprob *= 0.99;
         }
         for (Edge edge : edges)
-            edge.to.genRoots(prob * 0.3, random);
+            edge.to.genRoots(prob * 0.6, random);
+    }
+    void absorb(Edge edge) {
+        Vector3 v = edge.to.pos.sub(pos);
+        double l = v.len();
+        for (double d = 0; d < l; d += absorbLength) {
+            Vector3 absorbPos = pos.add(v.mul(d / l));
+            double length = Math.min(absorbLength, l - d);
+            int x = (int) Math.round(absorbPos.x), y = (int) Math.round(absorbPos.y), z = (int) Math.round(absorbPos.z);
+            if (Main.insideWaterMap(x, y, z)) {
+                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate, Main.waterMap[x][y][z]);
+                water += absorbed;
+                Main.waterMap[x][y][z] -= absorbed;
+            }
+        }
+    }
+    void absorb() {
+        for (Edge edge : edges) {
+            absorb(edge);
+            edge.to.absorb();
+        }
     }
 }
