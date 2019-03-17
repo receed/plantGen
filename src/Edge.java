@@ -6,4 +6,8 @@ public class Edge {
         this.to = to;
         this.width = width;
     }
+
+    boolean isRoot() {
+        return to.pos.y < 0;
+    }
 }

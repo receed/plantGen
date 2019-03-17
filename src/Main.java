@@ -660,7 +660,7 @@ public class Main implements GLEventListener {
         genLandscape();
         genWater();
         plants.add(plant);
-        plant.root.genLeaves(1, null, plant, random);
+        plant.root.genLeaves(1, plant, random);
         plant.root.genRoots(1, random);
 //        plant.root.genLeaf(plant, random);
         final JFrame frame = new JFrame( " Multicolored main" );

@@ -17,30 +17,32 @@ public class Joint {
     Joint(Vector3 v) {
         pos = new Vector3(v);
     }
+    void drawEdge(Edge edge, GL2 gl) {
+        gl.glColor3d(1, 0, 0);
+        gl.glPushMatrix();
+        Vector3 v = edge.to.pos.sub(pos), axes = Vector3.up.cross(v);
+        gl.glTranslated(pos.x, pos.y, pos.z);
+        gl.glRotated(Math.toDegrees(v.getAngle(Vector3.up)), axes.x, axes.y, axes.z);
+        gl.glScaled(edge.width, v.len(), edge.width);
+        gl.glTranslated(0, 0.5, 0);
+        Main.cylinder(gl);
+        gl.glPopMatrix();
+    }
     void dfs(long time, GL2 gl) {
         visited = time;
         for (Leaf leaf : leaves)
-            if (leaf.visited < time)
-                leaf.dfs(time, gl);
+            leaf.draw(gl);
         for (Edge edge : edges)
             if (edge.to.visited < time) {
-                gl.glColor3d(1, 0, 0);
-                gl.glPushMatrix();
-                Vector3 v = edge.to.pos.sub(pos), axes = Vector3.up.cross(v);
-                gl.glTranslated(pos.x, pos.y, pos.z);
-                gl.glRotated(Math.toDegrees(v.getAngle(Vector3.up)), axes.x, axes.y, axes.z);
-                gl.glScaled(edge.width, v.len(), edge.width);
-                gl.glTranslated(0, 0.5, 0);
-                Main.cylinder(gl);
-                gl.glPopMatrix();
+                if (edge.isRoot())
+                    drawEdge(edge, gl);
                 edge.to.dfs(time, gl);
             }
     }
-    void grow(double k, Vector3 v, Leaf parent) {
+    void grow(Vector3 v) {
         pos = pos.add(v);
-        for (Leaf leaf : leaves)
-            if (leaf != parent)
-                leaf.grow(k, v, this);
+        for (Edge edge : edges)
+            edge.to.grow(v);
     }
     void genLeaf(Plant plant, Random random) {
         Vector3 a = Vector3.random(0.1, 0.5, random);
@@ -50,22 +52,24 @@ public class Joint {
         if (b.y < 0)
             b.y = -b.y;
         Leaf leaf = new Leaf(plant);
-        leaf.connect(this);
-        leaf.connect(new Joint(pos.add(a.mul(5))));
-        leaf.connect(new Joint(pos.add(b.mul(5))));
+        leaves.add(leaf);
+        Joint joint1 = new Joint(pos.add(a.mul(5))), joint2 = new Joint(pos.add(b.mul(5)));
+        leaf.joints.add(this);
+        leaf.joints.add(joint1);
+        leaf.joints.add(joint2);
         plant.leaves.add(leaf);
+        edges.add(new Edge(joint1, 0.1));
+        edges.add(new Edge(joint2, 0.1));
     }
-    void genLeaves(double prob, Leaf parent, Plant plant, Random random) {
+    void genLeaves(double prob, Plant plant, Random random) {
         double nprob = prob;
         while (random.nextDouble() < nprob) {
             genLeaf(plant, random);
             nprob *= 0.97;
         }
-        for (Leaf leaf : leaves)
-            if (leaf != parent)
-                for (Joint joint : leaf.joints)
-                    if (joint != this)
-                        joint.genLeaves(prob * 0.25, leaf, plant, random);
+        for (Edge edge : edges)
+            if (!edge.isRoot())
+                edge.to.genLeaves(prob * 0.25, plant, random);
     }
     void genRoots(double prob, Random random) {
         double nprob = prob;
@@ -77,10 +81,11 @@ public class Joint {
             nprob *= 0.99;
         }
         for (Edge edge : edges)
-            edge.to.genRoots(prob * 0.8, random);
+            if (edge.isRoot())
+                edge.to.genRoots(prob * 0.8, random);
     }
     void absorb(Edge edge) {
-        if (edge.to.pos.y > 0)
+        if (!edge.isRoot())
             return;
         Vector3 v = edge.to.pos.sub(pos);
         double l = v.len();
@@ -97,8 +102,10 @@ public class Joint {
     }
     void absorb(Plant plant) {
         for (Edge edge : edges) {
-            absorb(edge);
-            edge.to.absorb(plant);
+            if (edge.isRoot()) {
+                absorb(edge);
+                edge.to.absorb(plant);
+            }
         }
         plant.water += water;
     }

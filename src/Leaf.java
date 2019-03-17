@@ -3,7 +3,6 @@ import com.jogamp.opengl.GL2;
 import java.util.ArrayList;
 
 public class Leaf {
-    long visited = 0;
     double light = 0;
     ArrayList<Joint> joints = new ArrayList<>();
     Plant plant;
@@ -22,20 +21,4 @@ public class Leaf {
         gl.glEnd();
     }
 
-    void dfs(long time, GL2 gl) {
-        draw(gl);
-        visited = time;
-        for (Joint joint : joints)
-            if (joint.visited < time)
-                joint.dfs(time, gl);
-    }
-    void grow(double k, Vector3 v, Joint parent) {
-        for (Joint joint : joints)
-            if (joint != parent)
-                joint.grow(1, joint.pos.sub(parent.pos).mul(k - 1), this);
-    }
-    void connect(Joint joint) {
-        joints.add(joint);
-        joint.leaves.add(this);
-    }
 }
