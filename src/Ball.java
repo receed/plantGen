@@ -31,7 +31,7 @@ public class Ball {
         gl.glPushMatrix();
         gl.glTranslated(pos.x, pos.y, pos.z);
         gl.glScaled(0.5, 0.5, 0.5);
-        Main.sphere(gl);
+        Main.sphere(gl, 20);
         gl.glPopMatrix();
     }
 }
