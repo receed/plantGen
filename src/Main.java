@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Random;
 
 import com.jogamp.opengl.glu.GLU;
@@ -60,7 +61,13 @@ public class Main implements GLEventListener {
     static double waterSize = 4, waterDepth = 4;
     static double[][][] waterMap = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static double[][][] waterMapOld = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
+<<<<<<< HEAD
 
+=======
+    static boolean[][][] absorbed = new boolean[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
+    static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
+    static double maxWaterInDrop = 0.013;
+>>>>>>> translucent water
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -366,11 +373,19 @@ public class Main implements GLEventListener {
     }
     static void genWater() {
         int a[] = new int[5];
+<<<<<<< HEAD
         double r = 0.02, randomWeight = 1;
         for (int i = 0; i < 2; i++)
             for (int j = 0; j < 2; j++)
                 for (int k = 0; k < 2; k++)
                     waterMap[i][j][k] = random.nextDouble() * r;
+=======
+        double r = maxWaterInDrop, randomWeight = 2;
+        for (int i = 0; i < 2; i++)
+            for (int j = 0; j < 2; j++)
+                for (int k = 0; k < 2; k++)
+                    waterMap[i * waterMapSize][j * waterMapSize][k * waterMapDepth] = random.nextDouble() * r;
+>>>>>>> translucent water
         for (int d = waterMapSize / 2; d > 0; d /= 2) {
             for (int i = d; i < waterMapSize; i += 2 * d)
                 for (int j = d; j < waterMapSize; j += 2 * d)
@@ -384,6 +399,7 @@ public class Main implements GLEventListener {
                     }
             for (int i = 0; i <= waterMapSize; i += d)
                 for (int j = 0; j <= waterMapSize; j += d)
+<<<<<<< HEAD
                     for (int k = (i / d % 2 == j / d % 2 ? d : 0); k <= waterMapDepth; k += 2 * d) {
                         double sum = 0, cnt = 0;
                         for (int l = 0; l < 6; l++) {
@@ -393,11 +409,28 @@ public class Main implements GLEventListener {
                                 cnt++;
                             }
                         }
+=======
+                    for (int k = 0; k <= waterMapDepth; k += d) {
+                        int cs = i / d % 2 + j / d % 2 + k / d % 2;
+                        if (cs % 3 == 0)
+                            continue;
+                        double sum = 0, cnt = 0;
+                        for (int di = -1; di <= 1; di++)
+                            for (int dj = -1; dj <= 1; dj++)
+                                for (int dk = -1; dk <= 1; dk++) {
+                                    int ni = i + di * d, nj = j + dj * d, nk = k + dk * d;
+                                    if ((ni / d % 2 + nj / d % 2 + nk / d % 2) % 3 == 0 && insideWaterMap(ni, nj, nk)) {
+                                        sum += waterMap[ni][nj][nk];
+                                        cnt++;
+                                    }
+                                }
+>>>>>>> translucent water
                         waterMap[i][j][k] = (sum + random.nextDouble() * r * randomWeight) / (cnt + randomWeight);
                     }
         }
     }
 
+<<<<<<< HEAD
     public void drawWater(GL2 gl) {
         double step = waterSize / waterMapSize, depthStep = waterDepth / waterMapDepth;
         gl.glColor4d(0, 0, 1, 0.8);
@@ -411,6 +444,85 @@ public class Main implements GLEventListener {
                     sphere(gl, 4);
                     gl.glPopMatrix();
                 }
+=======
+    static void waterVertex(int i, int j, int k, double step, double depthStep, GL2 gl) {
+        if (!absorbed[i][j][k]) {
+            double alpha = 0.5 * waterMap[i][j][k] / maxWaterInDrop;
+            gl.glColor4d(0, 0, 1, alpha);
+        }
+        else
+            gl.glColor4d(0.6, 0, 0.4, 1);
+        gl.glVertex3d((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
+    }
+
+    public void drawWater(GL2 gl) {
+        double step = waterSize / waterMapSize, depthStep = waterDepth / waterMapDepth;
+//        for (int i = 0; i <= waterMapSize; i++)
+//            for (int j = 0; j <= waterMapSize; j++)
+//                for (int k = 0; k <= waterMapDepth; k++) {
+//                    if (!absorbed[i][j][k])
+//                        gl.glColor4d(0, 0, 1, 0.1);
+//                    else
+//                        gl.glColor4d(0.6, 0, 0.4, 0.1);
+//                    gl.glPushMatrix();
+//                    gl.glTranslated((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
+//                    double r = Math.pow(waterMap[i][j][k] / (Math.PI * 4 / 3), 1.0 / 3);
+//                    gl.glScaled(r, r, r);
+//                    sphere(gl, 3);
+//                    gl.glPopMatrix();
+//                }
+        Arrays.sort(waterOrder, new Comparator<int[]>() {
+            @Override
+            public int compare(int[] t1, int[] t2) {
+                double d = camera.pos.dist(new Vector3(t1[0], t1[1], t1[2])) -
+                        camera.pos.dist(new Vector3(t2[0], t2[1], t2[2]));
+                return Double.compare(0, d);
+            }
+        });
+//        for (int[] drop : waterOrder) {
+//            int i = drop[0], j = drop[1], k = drop[2];
+//            if (!absorbed[i][j][k]) {
+//                double alpha = 0.5 * waterMap[i][j][k] / maxWaterInDrop;
+//                gl.glColor4d(0, 0, 1, alpha);
+//            }
+//            else
+//                gl.glColor4d(0.6, 0, 0.4, 1);
+//            gl.glPushMatrix();
+//            gl.glTranslated((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
+//
+//            double r = Math.pow(waterMap[i][j][k] / (Math.PI * 4 / 3), 1.0 / 3);
+//            gl.glScaled(step, depthStep, step);
+//            cube(gl);
+//            gl.glPopMatrix();
+//        }
+        for (int[] drop : waterOrder) {
+            int i = drop[0], j = drop[1], k = drop[2];
+            if (i < waterMapSize && j < waterMapSize) {
+                gl.glBegin(GL2.GL_QUADS);
+                waterVertex(i, j, k, step, depthStep, gl);
+                waterVertex(i, j + 1, k, step, depthStep, gl);
+                waterVertex(i + 1, j + 1, k, step, depthStep, gl);
+                waterVertex(i + 1, j, k, step, depthStep, gl);
+                gl.glEnd();
+            }
+            if (j < waterMapSize && k < waterMapSize) {
+                gl.glBegin(GL2.GL_QUADS);
+                waterVertex(i, j, k, step, depthStep, gl);
+                waterVertex(i, j + 1, k, step, depthStep, gl);
+                waterVertex(i, j + 1, k + 1, step, depthStep, gl);
+                waterVertex(i, j, k + 1, step, depthStep, gl);
+                gl.glEnd();
+            }
+            if (k < waterMapSize && i < waterMapSize) {
+                gl.glBegin(GL2.GL_QUADS);
+                waterVertex(i, j, k, step, depthStep, gl);
+                waterVertex(i + 1, j, k, step, depthStep, gl);
+                waterVertex(i + 1, j, k + 1, step, depthStep, gl);
+                waterVertex(i, j, k + 1, step, depthStep, gl);
+                gl.glEnd();
+            }
+        }
+>>>>>>> translucent water
     }
 
     void flowWater() {
@@ -423,11 +535,24 @@ public class Main implements GLEventListener {
                     for (int l = 0; l < 6; l++) {
                         int ni = i + adj3d[l][0], nj = j + adj3d[l][1], nk = k + adj3d[l][2];
                         if (insideWaterMap(ni, nj, nk)) {
+<<<<<<< HEAD
                             double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * 0.009;
+=======
+                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) / 15;
+>>>>>>> translucent water
                             waterMap[i][j][k] -= flow;
                             waterMap[ni][nj][nk] += flow;
                         }
                     }
+<<<<<<< HEAD
+=======
+        double sum = 0;
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                for (int k = 0; k <= waterMapDepth; k++)
+                    sum += waterMap[i][j][k];
+        System.out.println(sum);
+>>>>>>> translucent water
     }
 
     @Override
@@ -465,8 +590,16 @@ public class Main implements GLEventListener {
         time++;
 //        plant.root.genLeaves(0.002, null, plant, random);
         plant.root.dfs(time, gl);
+<<<<<<< HEAD
         plant.root.absorb();
         flowWater();
+=======
+        plant.water = 0;
+        plant.root.absorb(plant);
+        System.out.println();
+        flowWater();
+        System.out.println(plant.water + "!");
+>>>>>>> translucent water
 //        ball.setSpeed(ballX, ballZ);
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));
 //        System.out.println(ball.pos.x + " " + ball.pos.y + " " + ball.pos.z);
@@ -479,6 +612,7 @@ public class Main implements GLEventListener {
         gl.glColor3d(0.8, 1, 1);
         sphere(gl, 10);
         gl.glPopMatrix();
+        drawWater(gl);
         renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
         renderer.setColor(0, 1, 0.4f, 0.9f);
         renderer.draw("Light received: " + plant.getLight(), 5, 5);
@@ -510,7 +644,10 @@ public class Main implements GLEventListener {
         gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER,GL.GL_LINEAR);
         gl.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Main.widthTexture,  Main.heightTexture,
                 0,GL.GL_RGB, GL.GL_UNSIGNED_BYTE, Main.pixels);
-//        gl.glEnable(GL2.GL_NORMALIZE);
+
+        gl.glEnable(GL2.GL_BLEND); //Enable blending.
+        gl.glBlendFunc(GL2.GL_SRC_ALPHA, GL2.GL_ONE_MINUS_SRC_ALPHA); //Set blending function.
+        gl.glEnable(GL2.GL_NORMALIZE);
         gl.glEnable(GL2.GL_LIGHTING);
         gl.glEnable( GL2.GL_COLOR_MATERIAL);
         gl.glColorMaterial (GL2.GL_FRONT_AND_BACK, GL2.GL_DIFFUSE) ;
@@ -518,6 +655,16 @@ public class Main implements GLEventListener {
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, new float[] {0.4f, 0.4f, 0.4f, 0}, 0);
         gl.glEnable(GL2.GL_LIGHT0);
         renderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 20));
+        int pos = 0;
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                for (int k = 0; k <= waterMapDepth; k++) {
+                    waterOrder[pos][0] = i;
+                    waterOrder[pos][1] = j;
+                    waterOrder[pos][2] = k;
+                    pos++;
+                }
+
     }
 
     @Override
