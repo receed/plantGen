@@ -4,11 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class Joint {
-<<<<<<< HEAD
-    double absorbLength = 0.1, absorbRate = 0.1;
-=======
     double absorbLength = 0.5, absorbRate = 0.1;
->>>>>>> translucent water
     Vector3 pos;
     long visited = 0;
     double water = 0;
@@ -81,47 +77,21 @@ public class Joint {
             nprob *= 0.99;
         }
         for (Edge edge : edges)
-<<<<<<< HEAD
-            edge.to.genRoots(prob * 0.6, random);
-    }
-    void absorb(Edge edge) {
-=======
             edge.to.genRoots(prob * 0.8, random);
     }
     void absorb(Edge edge) {
         if (edge.to.pos.y > 0)
             return;
->>>>>>> translucent water
         Vector3 v = edge.to.pos.sub(pos);
         double l = v.len();
         for (double d = 0; d < l; d += absorbLength) {
             Vector3 absorbPos = pos.add(v.mul(d / l));
             double length = Math.min(absorbLength, l - d);
-<<<<<<< HEAD
             int x = (int) Math.round(absorbPos.x), y = (int) Math.round(absorbPos.y), z = (int) Math.round(absorbPos.z);
             if (Main.insideWaterMap(x, y, z)) {
                 double absorbed = Math.min(Math.PI * edge.width * length * absorbRate, Main.waterMap[x][y][z]);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
-            }
-        }
-    }
-    void absorb() {
-        for (Edge edge : edges) {
-            absorb(edge);
-            edge.to.absorb();
-        }
-=======
-            int x = (int) Math.round((absorbPos.x + Main.waterSize / 2) / Main.waterSize * Main.waterMapSize);
-            int y = (int) Math.round((absorbPos.z + Main.waterSize / 2) / Main.waterSize * Main.waterMapSize);
-            int z = (int) Math.round(-absorbPos.y / Main.waterDepth * Main.waterMapDepth);
-            if (Main.insideWaterMap(x, y, z)) {
-                double maxAbsorbed = Math.PI * edge.width * length * absorbRate;
-                double absorbed = Math.min(maxAbsorbed, Main.waterMap[x][y][z] * 0.8);
-                assert(absorbed >= 0);
-                water += absorbed;
-                Main.waterMap[x][y][z] -= absorbed;
-                Main.absorbed[x][y][z] = true;
             }
         }
     }
@@ -131,7 +101,5 @@ public class Joint {
             edge.to.absorb(plant);
         }
         plant.water += water;
-        System.out.print(water + " ");
->>>>>>> translucent water
     }
 }
