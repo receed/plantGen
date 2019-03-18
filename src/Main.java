@@ -591,8 +591,8 @@ public class Main implements GLEventListener {
         gl.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, Main.widthTexture,  Main.heightTexture,
                 0,GL.GL_RGB, GL.GL_UNSIGNED_BYTE, Main.pixels);
 
-        gl.glEnable(GL2.GL_BLEND); //Enable blending.
-        gl.glBlendFunc(GL2.GL_SRC_ALPHA, GL2.GL_ONE_MINUS_SRC_ALPHA); //Set blending function.
+        gl.glEnable(GL2.GL_BLEND);
+        gl.glBlendFunc(GL2.GL_SRC_ALPHA, GL2.GL_ONE_MINUS_SRC_ALPHA);
         gl.glEnable(GL2.GL_NORMALIZE);
         gl.glEnable(GL2.GL_LIGHTING);
         gl.glEnable( GL2.GL_COLOR_MATERIAL);
