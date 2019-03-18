@@ -1,15 +1,16 @@
 import com.jogamp.opengl.GL2;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Random;
 
 public class Joint {
     double absorbLength = 0.5, absorbRate = 0.1;
     Vector3 pos;
     long visited = 0;
-    double water = 0;
-    ArrayList<Leaf> leaves = new ArrayList<>();
-    ArrayList<Edge> edges = new ArrayList<>();
+    double water = 0, glucose = 0;
+    LinkedList<Leaf> leaves = new LinkedList<>();
+    LinkedList<Edge> edges = new LinkedList<>();
 
     Joint() {
         pos = new Vector3();
@@ -38,6 +39,8 @@ public class Joint {
                     drawEdge(edge, gl);
                 edge.to.dfs(time, gl);
             }
+        if (Main.random.nextDouble() < Main.timeDelta * 2e-6)
+            genSeed();
     }
     void grow(Vector3 v) {
         pos = pos.add(v);
@@ -61,28 +64,34 @@ public class Joint {
         edges.add(new Edge(joint1, 0.1));
         edges.add(new Edge(joint2, 0.1));
     }
-    void genLeaves(double prob, Plant plant, Random random) {
+    void genLeaves(double prob, double probFactor1, double probFactor2, Plant plant, Random random) {
         double nprob = prob;
         while (random.nextDouble() < nprob) {
             genLeaf(plant, random);
-            nprob *= 0.97;
+            nprob *= probFactor1;
         }
         for (Edge edge : edges)
             if (!edge.isRoot())
-                edge.to.genLeaves(prob * 0.25, plant, random);
+                edge.to.genLeaves(prob * probFactor2, probFactor1, probFactor2, plant, random);
     }
-    void genRoots(double prob, Random random) {
+    void genLeaves(double prob, Plant plant, Random random) {
+        genLeaves(prob, 0.97, 0.25, plant, random);
+    }
+    void genRoots(double prob, double probFactor1, double probFactor2, Random random) {
         double nprob = prob;
         while (random.nextDouble() < nprob) {
             Vector3 a = Vector3.random(0.1, 0.5, random);
             if (a.y > 0)
                 a.y = -a.y;
             edges.add(new Edge(new Joint(pos.add(a)), 0.008));
-            nprob *= 0.99;
+            nprob *= probFactor1;
         }
         for (Edge edge : edges)
             if (edge.isRoot())
-                edge.to.genRoots(prob * 0.8, random);
+                edge.to.genRoots(prob * probFactor2, probFactor1, probFactor2, random);
+    }
+    void genRoots(double prob, Random random) {
+        genRoots(prob, 0.99, 0.8, random);
     }
     void absorb(Edge edge) {
         if (!edge.isRoot())
@@ -108,5 +117,10 @@ public class Joint {
             }
         }
         plant.water += water;
+    }
+
+    void genSeed() {
+        Main.seeds.add(new Seed(new Vector3(pos), Vector3.random(1e-3, 2e-3, Main.random),
+                Vector3.up.mul(-1e-7)));
     }
 }

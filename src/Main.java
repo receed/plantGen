@@ -10,10 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.Key;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Random;
+import java.util.*;
 
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
@@ -40,7 +37,7 @@ public class Main implements GLEventListener {
     public static int heightTexture;
     public static int widthMap = 63;
     public static int heightMap = 63;
-    static long time = 0;
+    static long time = 0, oldTime = 0, timeDelta = 0;
     static double[][] height = new double[widthMap][heightMap];
     static final int bufferSize = 500;
     static double[][] maxHeight = new double[bufferSize][bufferSize];
@@ -53,7 +50,7 @@ public class Main implements GLEventListener {
     static double inf = Double.POSITIVE_INFINITY;
     Ball ball = new Ball(new Vector3(5, 0, 5));
     static Plant plant = new Plant();
-    static ArrayList<Plant> plants = new ArrayList<>();
+    static LinkedList<Plant> plants = new LinkedList<>();
     static double sunAngle = 0;
     static Vector3 sunAxis = new Vector3(0, 0, 1);
     TextRenderer renderer;
@@ -64,6 +61,7 @@ public class Main implements GLEventListener {
     static boolean[][][] absorbed = new boolean[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
     static double maxWaterInDrop = 0.013;
+    static LinkedList<Seed> seeds = new LinkedList<>();
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -91,7 +89,7 @@ public class Main implements GLEventListener {
         gl.glEnd();
     }
 
-    private void cube(GL2 gl){
+    static void cube(GL2 gl){
         gl.glBegin(gl.GL_QUADS);
         gl.glVertex3f( 0.5f, 0.5f, 0.5f);
         gl.glVertex3f( 0.5f,-0.5f, 0.5f);
@@ -334,7 +332,7 @@ public class Main implements GLEventListener {
         }
     }
 
-    void getLighting(ArrayList<Plant> plants, Vector3 axis, double angle, double density) {
+    void getLighting(LinkedList<Plant> plants, Vector3 axis, double angle, double density) {
         Matrix3x3 rot = Matrix3x3.mRot(axis.norm(), angle);
         for (int i = 0; i < bufferSize; i++) {
             Arrays.fill(maxHeight[i], -inf);
@@ -504,7 +502,16 @@ public class Main implements GLEventListener {
             for (int j = 0; j <= waterMapSize; j++)
                 for (int k = 0; k <= waterMapDepth; k++)
                     sum += waterMap[i][j][k];
-        System.out.println(sum);
+//        System.out.println(sum);
+    }
+
+    void drawSun(Vector3 sunDir, GL2 gl) {
+        gl.glPushMatrix();
+        gl.glTranslated(sunDir.x, sunDir.y, sunDir.z);
+        gl.glScaled(0.4, 0.4, 0.4);
+        gl.glColor3d(0.8, 1, 1);
+        sphere(gl, 10);
+        gl.glPopMatrix();
     }
 
     @Override
@@ -513,7 +520,11 @@ public class Main implements GLEventListener {
         final GL2 gl = drawable.getGL().getGL2();
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
         gl.glLoadIdentity();
-
+        oldTime = time;
+        time = System.currentTimeMillis();
+        if (oldTime == 0)
+            oldTime = time;
+        timeDelta = time - oldTime;
         camera.strafeFB(strafeFB * 0.1);
         cameraDistance -= strafeFB * 0.1;
         camera.strafeLR(strafeLR * 0.1);
@@ -533,31 +544,27 @@ public class Main implements GLEventListener {
 //        ball.setSpeed(camera.dir.x * ballZ,
 //                camera.dir.cross(camera.up).z * -ballX);
 //        camera.pos = ball.pos.add(camera.dir.mul(-cameraDistance));
-//        System.out.println(cameraDistance);
-//        System.out.println(ball.pos + " " + camera.pos + " " + camera.dir);
         camera.look(glu);
 //        ball.move(0.1, gl);
         gl.glPushMatrix();
         landscape(gl);
-        time++;
-//        plant.root.genLeaves(0.002, null, plant, random);
-        plant.root.dfs(time, gl);
-        plant.water = 0;
-        plant.root.absorb(plant);
-        System.out.println();
+        for (Plant plant1 : plants) {
+            plant1.root.dfs(time, gl);
+            plant1.water = 0;
+            plant1.root.absorb(plant);
+        }
         flowWater();
-        System.out.println(plant.water + "!");
-//        ball.setSpeed(ballX, ballZ);
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));
-//        System.out.println(ball.pos.x + " " + ball.pos.y + " " + ball.pos.z);
         skybox(gl);
         getLighting(plants, sunAxis, sunAngle, 1);
-        gl.glPushMatrix();
-        gl.glTranslated(sunDir.x, sunDir.y, sunDir.z);
-        gl.glScaled(0.4, 0.4, 0.4);
-        gl.glColor3d(0.8, 1, 1);
-        sphere(gl, 10);
-        gl.glPopMatrix();
+        drawSun(sunDir, gl);
+        for (Seed seed : seeds) {
+            seed.move();
+            seed.draw(gl);
+            if (seed.pos.y < 0 && Math.abs(seed.pos.x) < waterSize / 2 && Math.abs(seed.pos.z) < waterSize / 2)
+                plants.add(new Plant(seed));
+        }
+        seeds.removeIf(seed -> seed.pos.y < 0);
         drawWater(gl);
         renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
         renderer.setColor(0, 1, 0.4f, 0.9f);

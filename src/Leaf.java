@@ -1,10 +1,11 @@
 import com.jogamp.opengl.GL2;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class Leaf {
     double light = 0;
-    ArrayList<Joint> joints = new ArrayList<>();
+    LinkedList<Joint> joints = new LinkedList<>();
     Plant plant;
 
     Leaf(Plant plant) {

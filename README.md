@@ -1,6 +1,6 @@
 # Plant generation
 
-## Reactions
+### Reactions
 * Photosynthesis
 
 ![](http://www.sciweavers.org/tex2img.php?eq=6CO_2%2B6H_2O%2B%5Ctext%7Blight%20energy%7D%5Clongrightarrow%20C_6H_%7B12%7DO_6%2B6O_2&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=0)
@@ -14,3 +14,7 @@
 * Glucose synthesis
 
 ![](http://www.sciweavers.org/tex2img.php?eq=nC_6H_%7B12%7DO_6%5Clongrightarrow%20%28C_6H_%7B10%7DO_5%29_n%2BnH_2O&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=0)
+
+### Used algorithms
+* [Diamond-square algorithm](https://en.wikipedia.org/wiki/Diamond-square_algorithm) for water generation
+* [Z-buffering](https://en.wikipedia.org/wiki/Shadow_mapping#Algorithm_overview) for computation of light received by leaves

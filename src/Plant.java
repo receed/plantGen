@@ -1,8 +1,9 @@
 import java.util.ArrayList;
+import java.util.LinkedList;
 
 public class Plant {
-    Joint root = new Joint();
-    ArrayList<Leaf> leaves = new ArrayList<>();
+    Joint root;
+    LinkedList<Leaf> leaves = new LinkedList<>();
     double water = 0;
 
     double getLight() {
@@ -12,4 +13,14 @@ public class Plant {
         return sum;
     }
 
+    Plant() {
+        root = new Joint();
+    }
+
+    Plant(Seed seed) {
+        System.out.println(seed.pos);
+        root = new Joint(seed.pos);
+        root.genLeaves(1, 0, 0, this, Main.random);
+        root.genRoots(1, 0, 0, Main.random);
+    }
 }
