@@ -60,6 +60,7 @@ public class Joint {
         leaf.joints.add(this);
         leaf.joints.add(joint1);
         leaf.joints.add(joint2);
+        leaf.countSquare();
         plant.leaves.add(leaf);
         edges.add(new Edge(joint1, 0.008));
         edges.add(new Edge(joint2, 0.008));

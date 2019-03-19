@@ -62,6 +62,7 @@ public class Main implements GLEventListener {
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
     static double maxWaterInDrop = 0.013;
     static LinkedList<Seed> seeds = new LinkedList<>();
+    static double humidity = 0.7;
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);

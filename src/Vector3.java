@@ -1,5 +1,7 @@
 import com.jogamp.opengl.GL2;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 class Vector3 {
@@ -72,5 +74,14 @@ class Vector3 {
     }
     Vector3 normal(Vector3 a, Vector3 b) {
         return a.sub(this).cross(b.sub(this)).norm();
+    }
+    double square(Vector3 v1, Vector3 v2) {
+        return v1.sub(this).cross(v2.sub(this)).len() / 2;
+    }
+    static double square(ArrayList<Vector3> polygon) {
+        double square = 0;
+        for (int i = 1; i + 1 < polygon.size(); i++)
+            square += polygon.get(0).square(polygon.get(i), polygon.get(i + 1));
+        return square;
     }
 }
