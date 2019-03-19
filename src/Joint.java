@@ -39,7 +39,7 @@ public class Joint {
                     drawEdge(edge, gl);
                 edge.to.dfs(time, gl);
             }
-        if (Main.random.nextDouble() < Main.timeDelta * 2e-6)
+        if (pos.y > 0 && Main.random.nextDouble() < Main.timeDelta * 6e-6)
             genSeed();
     }
     void grow(Vector3 v) {
@@ -61,8 +61,8 @@ public class Joint {
         leaf.joints.add(joint1);
         leaf.joints.add(joint2);
         plant.leaves.add(leaf);
-        edges.add(new Edge(joint1, 0.1));
-        edges.add(new Edge(joint2, 0.1));
+        edges.add(new Edge(joint1, 0.008));
+        edges.add(new Edge(joint2, 0.008));
     }
     void genLeaves(double prob, double probFactor1, double probFactor2, Plant plant, Random random) {
         double nprob = prob;
