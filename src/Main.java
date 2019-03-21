@@ -63,6 +63,9 @@ public class Main implements GLEventListener {
     static double maxWaterInDrop = 0.013;
     static LinkedList<Seed> seeds = new LinkedList<>();
     static double humidity = 0.7;
+    static double viewAngle = 45, distanceToScreen;
+    static int windowWidth, windowHeight;
+    static Vector3 mouseVector;
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -515,6 +518,16 @@ public class Main implements GLEventListener {
         gl.glPopMatrix();
     }
 
+    void drawMousePointer(GL2 gl) {
+        gl.glPushMatrix();
+        Vector3 pointer = camera.pos.add(mouseVector.mul(4));
+        gl.glTranslated(pointer.x, pointer.y, pointer.z);
+        gl.glColor3d(1, 0, 1);
+        gl.glScaled(0.4, 0.4, 0.4);
+        sphere(gl, 12);
+        gl.glPopMatrix();
+    }
+
     @Override
     public void display( GLAutoDrawable drawable) {
 
@@ -532,6 +545,9 @@ public class Main implements GLEventListener {
         camera.rotLR(rotLR * 0.02 /*+ (oldMouseX - mouseX) * 0.015*/);
         camera.rotUD(rotUD * 0.02 /*+ (oldMouseY - mouseY) * 0.015*/);
         sunAngle += 0.005;
+        distanceToScreen = windowHeight / 2 / Math.tan(Math.toRadians(viewAngle) / 2);
+        mouseVector = camera.dir.mul(distanceToScreen).add(camera.up.mul(-mouseY + windowHeight / 2.0)).add(
+                camera.right().mul(mouseX - windowWidth / 2.0)).norm();
         oldMouseX = mouseX;
         oldMouseY = mouseY;
 //        camera.look(glu);
@@ -541,13 +557,15 @@ public class Main implements GLEventListener {
             gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2GL3.GL_FILL);
         else
             gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2GL3.GL_LINE);
+
+
         Vector3 sunDir = new Vector3(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 10, 0);
 //        ball.setSpeed(camera.dir.x * ballZ,
 //                camera.dir.cross(camera.up).z * -ballX);
 //        camera.pos = ball.pos.add(camera.dir.mul(-cameraDistance));
         camera.look(glu);
 //        ball.move(0.1, gl);
-        gl.glPushMatrix();
+        drawMousePointer(gl);
         landscape(gl);
         for (Plant plant1 : plants) {
             plant1.root.dfs(time, gl);
@@ -627,12 +645,14 @@ public class Main implements GLEventListener {
         // TODO Auto-generated method stub
         final GL2 gl = drawable.getGL().getGL2();
 
+        windowWidth = width;
+        windowHeight = height;
         final float h = ( float ) width / ( float ) height;
         gl.glViewport( 0, 0, width, height );
         gl.glMatrixMode( GL2.GL_PROJECTION );
         gl.glLoadIdentity();
 
-        glu.gluPerspective( 45.0f, h, 1.0, 100.0 );
+        glu.gluPerspective( viewAngle, h, 1.0, 100.0 );
         gl.glMatrixMode( GL2.GL_MODELVIEW );
         gl.glLoadIdentity();
     }
@@ -749,9 +769,10 @@ public class Main implements GLEventListener {
         });
         glcanvas.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
-            public void mouseDragged(MouseEvent e) {
+            public void mouseMoved(MouseEvent e) {
                 Main.mouseX = e.getX();
                 Main.mouseY = e.getY();
+
             }
         });
         final FPSAnimator animator = new FPSAnimator(glcanvas, 30,true);

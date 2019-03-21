@@ -7,6 +7,9 @@ public class Camera {
         dir = new Vector3(0, 0, -1);
         up = new Vector3(0, 1, 0);
     }
+    Vector3 right() {
+        return dir.cross(up);
+    }
     void look(GLU glu) {
         Vector3 look = pos.add(dir);
         glu.gluLookAt(pos.x, pos.y, pos.z, look.x, look.y, look.z, up.x, up.y, up.z);
