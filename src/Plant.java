@@ -18,7 +18,6 @@ public class Plant {
     }
 
     Plant(Seed seed) {
-        System.out.println(seed.pos);
         root = new Joint(seed.pos);
         root.genLeaves(1, 0, 0, this, Main.random);
         root.genRoots(1, 0, 0, Main.random);

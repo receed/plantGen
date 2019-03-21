@@ -4,7 +4,8 @@ import sun.font.TrueTypeFont;
 import java.util.ArrayList;
 
 public class Leaf {
-    double light = 0, square = 0, evaporationRate = 0.1;
+    double light = 0, square = 0;
+    static double evaporationRate = 0.1, waterPerGlucose = 6, lightPerGlucose;
     boolean lacksWater = false;
     ArrayList<Joint> joints = new ArrayList<>();
     Plant plant;
@@ -28,6 +29,12 @@ public class Leaf {
             lacksWater = false;
             joints.get(0).water -= evaporated;
         }
+    }
+
+    void photosynthesis(double maxWater) {
+        double glucose = Math.min(Math.min(maxWater, joints.get(0).water) / waterPerGlucose, light / lightPerGlucose);
+        joints.get(0).water -= glucose * waterPerGlucose;
+        joints.get(0).glucose += glucose;
     }
 
     void draw(GL2 gl) {
