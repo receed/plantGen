@@ -3,7 +3,7 @@ import sun.font.TrueTypeFont;
 
 import java.util.ArrayList;
 
-public class Leaf {
+public class Leaf implements Clickable {
     double light = 0, square = 0;
     static double evaporationRate = 0.1, waterPerGlucose = 6, lightPerGlucose;
     boolean lacksWater = false;
@@ -48,5 +48,11 @@ public class Leaf {
         for (Joint joint : joints)
             joint.pos.draw(gl);
         gl.glEnd();
+    }
+    public double distByRay(Vector3 from, Vector3 dir) {
+
+    }
+    public String info() {
+        return
     }
 }

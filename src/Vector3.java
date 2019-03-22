@@ -84,4 +84,24 @@ class Vector3 {
             square += polygon.get(0).square(polygon.get(i), polygon.get(i + 1));
         return square;
     }
+    double mixed(Vector3 a, Vector3 b) {
+        return dot(a.cross(b));
+    }
+    double mixed(Vector3 a, Vector3 b, Vector3 c) {
+        return a.sub(this).mixed(b.sub(this), c.sub(this));
+    }
+    double distByRay(Vector3 v, Vector3 a, Vector3 b, Vector3 c) {
+        Vector3 va = a.sub(this), vb = b.sub(this), vc = c.sub(this);
+        double vol = Math.signum(va.mixed(vb, vc)), s = Math.signum(vol);
+        if (Math.signum(va.mixed(vb, v)) != s || Math.signum(vb.mixed(vc, v)) != s || Math.signum(vb.mixed(vc, v)) != s)
+            return Double.POSITIVE_INFINITY;
+        Vector3 normal = b.sub(a).cross(c.sub(a)).norm();
+        double h = v.dot(normal);
+        if (h == 0)
+            return Double.POSITIVE_INFINITY;
+        double ans = -va.dot(normal) / h;
+        if (ans < 0)
+            return Double.POSITIVE_INFINITY;
+        return ans;
+    }
 }
