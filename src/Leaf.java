@@ -12,6 +12,7 @@ public class Leaf extends Clickable {
 
     Leaf(Plant plant) {
         this.plant = plant;
+        plant.leaves.add(this);
     }
 
     void countSquare() {
@@ -38,8 +39,10 @@ public class Leaf extends Clickable {
     }
 
     void draw(GL2 gl) {
-        if (selected)
+        if (selected) {
+            gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {1, 0, 0, 1}, 0);
             gl.glColor3d(1, 0, 0);
+        }
         else if (lacksWater)
             gl.glColor3d(0.59, 0.16, 0.11);
         else
@@ -50,7 +53,10 @@ public class Leaf extends Clickable {
         for (Joint joint : joints)
             joint.pos.draw(gl);
         gl.glEnd();
+        if (selected)
+            gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {0, 0, 0, 1}, 0);
     }
+    @Override
     public double distByRay(Vector3 from, Vector3 dir) {
         return from.distByRay(dir, joints.get(0).pos, joints.get(1).pos, joints.get(2).pos);
     }

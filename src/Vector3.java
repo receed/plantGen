@@ -69,7 +69,7 @@ class Vector3 {
         double length = minLength + random.nextDouble() * (maxLength - minLength);
         return v.norm(length);
     }
-    double getAngle(Vector3 v) {
+    double angle(Vector3 v) {
         return Math.acos(dot(v) / len() / v.len());
     }
     Vector3 normal(Vector3 a, Vector3 b) {

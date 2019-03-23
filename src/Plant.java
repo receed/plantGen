@@ -4,6 +4,7 @@ import java.util.LinkedList;
 public class Plant {
     Joint root;
     LinkedList<Leaf> leaves = new LinkedList<>();
+    LinkedList<Joint> joints = new LinkedList<>();
     double water = 0;
 
     double getLight() {
@@ -14,12 +15,12 @@ public class Plant {
     }
 
     Plant() {
-        root = new Joint();
+        root = new Joint(this);
     }
 
     Plant(Seed seed) {
-        root = new Joint(seed.pos);
-        root.genLeaves(1, 0, 0, this, Main.random);
+        root = new Joint(this, seed.pos);
+        root.genLeaves(1, 0, 0, Main.random);
         root.genRoots(1, 0, 0, Main.random);
     }
 }

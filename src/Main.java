@@ -66,9 +66,8 @@ public class Main implements GLEventListener {
     static double viewAngle = 45, distanceToScreen;
     static int windowWidth, windowHeight;
     static Vector3 mouseVector;
-    static Clickable clickedObject;
+    static Clickable clickedObject, selectedObject;
     static double clickedObjectDistance;
-
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -256,7 +255,7 @@ public class Main implements GLEventListener {
         gl.glPushMatrix();
         //gl.glScaled(0.1, 0.1, 0.1);
         gl.glColor3d(0, 0.3, 1);
-        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_AMBIENT, new float[] {0, 0.075f, 0.25f, 1}, 0);
+        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_AMBIENT, new float[] {0, 0.2f, 0.5f, 1}, 0);
         for (int i = 1; i < widthMap; i += 2)
             for (int j = 1; j < heightMap; j += 2) {
                 gl.glBegin(GL.GL_TRIANGLE_FAN);
@@ -513,15 +512,18 @@ public class Main implements GLEventListener {
     }
 
     void drawSun(Vector3 sunDir, GL2 gl) {
+        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {1, 0.63f, 0, 1}, 0);
         gl.glPushMatrix();
         gl.glTranslated(sunDir.x, sunDir.y, sunDir.z);
         gl.glScaled(0.4, 0.4, 0.4);
-        gl.glColor3d(0.8, 1, 1);
+        gl.glColor3d(1, 1, 1);
         sphere(gl, 10);
         gl.glPopMatrix();
+        gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {0, 0, 0, 1}, 0);
     }
 
     void drawMousePointer(GL2 gl) {
+        gl.glDisable(GL2.GL_LIGHTING);
         gl.glPushMatrix();
         Vector3 pointer = camera.pos.add(mouseVector.mul(1));
         gl.glTranslated(pointer.x, pointer.y, pointer.z);
@@ -529,24 +531,37 @@ public class Main implements GLEventListener {
         gl.glScaled(0.02, 0.02, 0.02);
         sphere(gl, 12);
         gl.glPopMatrix();
+        gl.glEnable(GL2.GL_LIGHTING);
+    }
+
+    static void updateClicked(Clickable object) {
+        double dist = object.distByRay(camera.pos, mouseVector);
+        if (Double.isFinite(dist) && dist < clickedObjectDistance) {
+            clickedObject = object;
+            clickedObjectDistance = dist;
+        }
+    }
+
+    static Clickable getClicked() {
+        clickedObject = null;
+        clickedObjectDistance = Double.POSITIVE_INFINITY;
+        for (Plant plant1 : plants) {
+            for (Leaf leaf : plant1.leaves)
+                updateClicked(leaf);
+            for (Joint joint : plant1.joints)
+                updateClicked(joint);
+        }
+        return clickedObject;
     }
 
     static void click() {
-        if (clickedObject != null) {
-            clickedObject.unselect();
-            clickedObject = null;
+        if (selectedObject != null) {
+            selectedObject.unselect();
+            selectedObject = null;
         }
-        clickedObjectDistance = Double.POSITIVE_INFINITY;
-        for (Plant plant1 : plants)
-            for (Leaf leaf : plant1.leaves) {
-                double dist = leaf.distByRay(camera.pos, mouseVector);
-                if (Double.isFinite(dist) && dist < clickedObjectDistance) {
-                    clickedObject = leaf;
-                    clickedObjectDistance = dist;
-                }
-            }
-        if (clickedObject != null)
-            clickedObject.select();
+        selectedObject = getClicked();
+        if (selectedObject != null)
+            selectedObject.select();
     }
 
     @Override
@@ -709,7 +724,7 @@ public class Main implements GLEventListener {
         genLandscape();
         genWater();
         plants.add(plant);
-        plant.root.genLeaves(1, plant, random);
+        plant.root.genLeaves(1, random);
 //        plant.root.genLeaf(plant, random);
         plant.root.genRoots(1, random);
 //        plant.root.genLeaf(plant, random);
