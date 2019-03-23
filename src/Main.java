@@ -26,7 +26,7 @@ public class Main implements GLEventListener {
 
     public static DisplayMode dm, dm_old;
     private GLU glu = new GLU();
-    Camera camera = new Camera();
+    static Camera camera = new Camera();
     private static double strafeUD = 0, strafeLR = 0, strafeFB = 0;
     private static double rotLR = 0, rotUD = 0, ballX = 0, ballZ = 0;
     static boolean fill = true;
@@ -66,6 +66,9 @@ public class Main implements GLEventListener {
     static double viewAngle = 45, distanceToScreen;
     static int windowWidth, windowHeight;
     static Vector3 mouseVector;
+    static Clickable clickedObject;
+    static double clickedObjectDistance;
+
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -520,12 +523,30 @@ public class Main implements GLEventListener {
 
     void drawMousePointer(GL2 gl) {
         gl.glPushMatrix();
-        Vector3 pointer = camera.pos.add(mouseVector.mul(4));
+        Vector3 pointer = camera.pos.add(mouseVector.mul(1));
         gl.glTranslated(pointer.x, pointer.y, pointer.z);
         gl.glColor3d(1, 0, 1);
-        gl.glScaled(0.4, 0.4, 0.4);
+        gl.glScaled(0.02, 0.02, 0.02);
         sphere(gl, 12);
         gl.glPopMatrix();
+    }
+
+    static void click() {
+        if (clickedObject != null) {
+            clickedObject.unselect();
+            clickedObject = null;
+        }
+        clickedObjectDistance = Double.POSITIVE_INFINITY;
+        for (Plant plant1 : plants)
+            for (Leaf leaf : plant1.leaves) {
+                double dist = leaf.distByRay(camera.pos, mouseVector);
+                if (Double.isFinite(dist) && dist < clickedObjectDistance) {
+                    clickedObject = leaf;
+                    clickedObjectDistance = dist;
+                }
+            }
+        if (clickedObject != null)
+            clickedObject.select();
     }
 
     @Override
@@ -689,6 +710,7 @@ public class Main implements GLEventListener {
         genWater();
         plants.add(plant);
         plant.root.genLeaves(1, plant, random);
+//        plant.root.genLeaf(plant, random);
         plant.root.genRoots(1, random);
 //        plant.root.genLeaf(plant, random);
         final JFrame frame = new JFrame( " Multicolored main" );
@@ -766,6 +788,9 @@ public class Main implements GLEventListener {
             public void mouseReleased(MouseEvent e) {
                 mousePressed = false;
             }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {Main.click(); }
         });
         glcanvas.addMouseMotionListener(new MouseMotionAdapter() {
             @Override

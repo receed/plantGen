@@ -39,8 +39,8 @@ public class Joint {
                     drawEdge(edge, gl);
                 edge.to.dfs(time, gl);
             }
-        if (pos.y > 0 && Main.random.nextDouble() < Main.timeDelta * 6e-6)
-            genSeed();
+//        if (pos.y > 0 && Main.random.nextDouble() < Main.timeDelta * 6e-6)
+//            genSeed();
     }
     void grow(Vector3 v) {
         pos = pos.add(v);
