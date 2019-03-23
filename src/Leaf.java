@@ -4,7 +4,7 @@ import sun.font.TrueTypeFont;
 import java.util.ArrayList;
 
 public class Leaf extends Clickable {
-    double light = 0, square = 0;
+    double light = 0, square = 0, glucoseSynthesized;
     static double evaporationRate = 0.1, waterPerGlucose = 6, lightPerGlucose;
     boolean lacksWater = false;
     ArrayList<Joint> joints = new ArrayList<>();
@@ -33,9 +33,9 @@ public class Leaf extends Clickable {
     }
 
     void photosynthesis(double maxWater) {
-        double glucose = Math.min(Math.min(maxWater, joints.get(0).water) / waterPerGlucose, light / lightPerGlucose);
-        joints.get(0).water -= glucose * waterPerGlucose;
-        joints.get(0).glucose += glucose;
+        glucoseSynthesized = Math.min(Math.min(maxWater, joints.get(0).water) / waterPerGlucose, light / lightPerGlucose);
+        joints.get(0).water -= glucoseSynthesized * waterPerGlucose;
+        joints.get(0).glucose += glucoseSynthesized;
     }
 
     void draw(GL2 gl) {
@@ -59,5 +59,15 @@ public class Leaf extends Clickable {
     @Override
     public double distByRay(Vector3 from, Vector3 dir) {
         return from.distByRay(dir, joints.get(0).pos, joints.get(1).pos, joints.get(2).pos);
+    }
+    @Override
+    public String toString() {
+        return String.format("Leaf\nSquare: %.3f\nLight: %.3f\nGlucose produced: %.3f\n", square, light, glucoseSynthesized);
+    }
+    String[] info() {
+        return new String[] {"Leaf",
+                String.format("Square: %.3f", square),
+                String.format("Light: %.2f", light),
+                String.format("Glucose produced: %.2f", glucoseSynthesized)};
     }
 }

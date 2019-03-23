@@ -7,4 +7,7 @@ abstract class Clickable {
     void unselect() {
         selected = false;
     }
+    String[] info() {
+        return new String[] {toString()};
+    }
 }

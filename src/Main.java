@@ -4,6 +4,7 @@ import com.jogamp.opengl.awt.GLCanvas;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
@@ -525,10 +526,10 @@ public class Main implements GLEventListener {
     void drawMousePointer(GL2 gl) {
         gl.glDisable(GL2.GL_LIGHTING);
         gl.glPushMatrix();
-        Vector3 pointer = camera.pos.add(mouseVector.mul(1));
+        Vector3 pointer = camera.pos.add(mouseVector.mul(2));
         gl.glTranslated(pointer.x, pointer.y, pointer.z);
         gl.glColor3d(1, 0, 1);
-        gl.glScaled(0.02, 0.02, 0.02);
+        gl.glScaled(0.03, 0.03, 0.03);
         sphere(gl, 12);
         gl.glPopMatrix();
         gl.glEnable(GL2.GL_LIGHTING);
@@ -624,7 +625,16 @@ public class Main implements GLEventListener {
         drawWater(gl);
         renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
         renderer.setColor(0, 1, 0.4f, 0.9f);
-        renderer.draw("Light received: " + plant.getLight(), 5, 5);
+        renderer.draw("Total light received: " + plant.getLight(), 5, 5);
+        if (selectedObject != null) {
+            String[] selectedInfo = selectedObject.info();
+            double textY = windowHeight - 10;
+            for (String str : selectedInfo) {
+                Rectangle2D rect = renderer.getBounds(str);
+                textY -= rect.getHeight();
+                renderer.draw(str, (int) (windowWidth - rect.getWidth() - 7), (int) textY);
+            }
+        }
         renderer.endRendering();
         float[] light_dir = {(float) sunDir.x, (float) sunDir.y, (float) sunDir.z};
         gl.glLightfv(GL2.GL_LIGHT0  , GL2.GL_POSITION, light_dir, 0);
@@ -663,7 +673,7 @@ public class Main implements GLEventListener {
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, new float[] {1, 1, 1, 0}, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, new float[] {0.4f, 0.4f, 0.4f, 0}, 0);
         gl.glEnable(GL2.GL_LIGHT0);
-        renderer = new TextRenderer(new Font("SansSerif", Font.BOLD, 20));
+        renderer = new TextRenderer(new Font("SansSerif", Font.PLAIN, 16));
         int pos = 0;
         for (int i = 0; i <= waterMapSize; i++)
             for (int j = 0; j <= waterMapSize; j++)

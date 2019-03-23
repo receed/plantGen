@@ -173,4 +173,14 @@ public class Joint extends Clickable {
         waterDelta = 0;
         glucoseDelta = 0;
     }
+    @Override
+    public String toString() {
+        return String.format("Joint\nWater: %.3f\nGlucose: %.3f\nVolume: %.3f\n", water, glucose, volume);
+    }
+    String[] info() {
+        return new String[] {"Joint",
+                String.format("Water: %.3f", water),
+                String.format("Glucose: %.2f", glucose),
+                String.format("Volume: %.2f", volume)};
+    }
 }
