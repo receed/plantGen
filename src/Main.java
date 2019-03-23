@@ -62,7 +62,7 @@ public class Main implements GLEventListener {
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
     static double maxWaterInDrop = 0.013;
     static LinkedList<Seed> seeds = new LinkedList<>();
-    static double humidity = 0.7;
+    static double humidity = 0.7, gravity = 9.8, waterDensity = 1;
     static double viewAngle = 45, distanceToScreen;
     static int windowWidth, windowHeight;
     static Vector3 mouseVector;
@@ -604,9 +604,10 @@ public class Main implements GLEventListener {
         drawMousePointer(gl);
         landscape(gl);
         for (Plant plant1 : plants) {
-            plant1.root.dfs(time, gl);
             plant1.water = 0;
             plant1.root.absorb(plant);
+            plant1.flow();
+            plant1.root.dfs(time, gl);
         }
         flowWater();
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));

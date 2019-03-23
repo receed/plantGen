@@ -7,7 +7,7 @@ public class Joint extends Clickable {
     double absorbLength = 0.5, absorbRate = 0.1;
     Vector3 pos;
     long visited = 0;
-    double water = 0, glucose = 0;
+    double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 1, youngModulus = 1;
     LinkedList<Leaf> leaves = new LinkedList<>();
     LinkedList<Edge> edges = new LinkedList<>();
     Plant plant;
@@ -145,5 +145,32 @@ public class Joint extends Clickable {
         if (v.angle(dir) > Math.toRadians(1.2))
             return Double.POSITIVE_INFINITY;
         return v.len() - 0.03;
+    }
+    double pressure() {
+        return Math.max(water - volume, 0) / volume * youngModulus;
+    }
+    void flow() {
+        double p = pressure();
+        for (Edge edge : edges) {
+            double p1 = edge.to.pressure();
+            double squaredSpeed = ((p - p1) / Main.waterDensity + (pos.y - edge.to.pos.y) * Main.gravity) * 2;
+            double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeDelta * edge.square();
+            waterDelta -= flowed;
+            edge.to.waterDelta += flowed;
+            double glucoseFlowed;
+            // as if water flowed to edge.to, back and again to edge.to, mixing glucose every time
+            if (flowed > 0)
+                glucoseFlowed = flowed * (2 * glucose / water - edge.to.glucose / edge.to.water);
+            else
+                glucoseFlowed = flowed * (glucose / water - 2 * edge.to.glucose / edge.to.water);
+            glucoseDelta -= glucoseFlowed;
+            edge.to.glucoseDelta += glucoseFlowed;
+        }
+    }
+    void pushDeltas() {
+        water = Math.max(0, water + waterDelta);
+        glucose = Math.max(0, glucose + glucoseDelta);
+        waterDelta = 0;
+        glucoseDelta = 0;
     }
 }

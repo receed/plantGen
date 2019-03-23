@@ -23,4 +23,11 @@ public class Plant {
         root.genLeaves(1, 0, 0, Main.random);
         root.genRoots(1, 0, 0, Main.random);
     }
+
+    void flow() {
+        for (Joint joint : joints)
+            joint.flow();
+        for (Joint joint : joints)
+            joint.pushDeltas();
+    }
 }
