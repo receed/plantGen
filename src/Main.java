@@ -1,4 +1,3 @@
-import com.jogamp.newt.event.MouseListener;
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.GLCanvas;
 
@@ -10,7 +9,6 @@ import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.security.Key;
 import java.util.*;
 
 import com.jogamp.opengl.glu.GLU;
@@ -69,10 +67,11 @@ public class Main implements GLEventListener {
     static Vector3 mouseVector;
     static Clickable clickedObject, selectedObject;
     static double clickedObjectDistance;
+    static double eps = 1e-10;
+
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
-
         // Front
         gl.glColor3f(0.0f, 1.0f, 1.0f);     gl.glVertex3f(0.0f, 1.0f, 0.0f);
         gl.glColor3f(0.0f, 0.0f, 1.0f);     gl.glVertex3f(-1.0f, -1.0f, 1.0f);
@@ -555,12 +554,12 @@ public class Main implements GLEventListener {
         return clickedObject;
     }
 
-    static void click() {
+    static void select(Clickable newSelected) {
         if (selectedObject != null) {
             selectedObject.unselect();
             selectedObject = null;
         }
-        selectedObject = getClicked();
+        selectedObject = newSelected;
         if (selectedObject != null)
             selectedObject.select();
     }
@@ -683,7 +682,11 @@ public class Main implements GLEventListener {
                     waterOrder[pos][2] = k;
                     pos++;
                 }
-
+        camera.rotLR(3 * Math.PI / 4);
+        camera.rotUD(-Math.PI / 8);
+        camera.strafeFB(-5);
+        camera.rotLR(-Math.PI / 8);
+        camera.rotUD(Math.PI / 16);
     }
 
     @Override
@@ -800,6 +803,11 @@ public class Main implements GLEventListener {
                     case KeyEvent.VK_LEFT:
                     case KeyEvent.VK_RIGHT:
                         ballX = 0; break;
+                    case KeyEvent.VK_P:
+                        if (Main.selectedObject instanceof Joint) {
+                            Main.select(((Joint) Main.selectedObject).parent());
+                        }
+                    break;
                 }
             }
         });
@@ -816,7 +824,7 @@ public class Main implements GLEventListener {
             }
 
             @Override
-            public void mouseClicked(MouseEvent e) {Main.click(); }
+            public void mouseClicked(MouseEvent e) {Main.select(Main.getClicked()); }
         });
         glcanvas.addMouseMotionListener(new MouseMotionAdapter() {
             @Override
@@ -830,6 +838,4 @@ public class Main implements GLEventListener {
 
         animator.start();
     }
-
-
 }

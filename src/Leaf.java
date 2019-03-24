@@ -5,7 +5,7 @@ import java.util.ArrayList;
 
 public class Leaf extends Clickable {
     double light = 0, square = 0, glucoseSynthesized;
-    static double evaporationRate = 0.1, waterPerGlucose = 6, lightPerGlucose;
+    static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose;
     boolean lacksWater = false;
     ArrayList<Joint> joints = new ArrayList<>();
     Plant plant;

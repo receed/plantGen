@@ -11,6 +11,8 @@ public class Joint extends Clickable {
     LinkedList<Leaf> leaves = new LinkedList<>();
     LinkedList<Edge> edges = new LinkedList<>();
     Plant plant;
+    Edge parentEdge;
+
 
     Joint(Plant plant) {
         this.plant = plant;
@@ -21,6 +23,13 @@ public class Joint extends Clickable {
         this.plant = plant;
         plant.joints.add(this);
         pos = new Vector3(v);
+    }
+    void addEdge(Joint to, double width) {
+        edges.add(new Edge(to, width));
+        to.parentEdge = new Edge(this, width);
+    }
+    Joint parent() {
+        return parentEdge == null ? null : parentEdge.to;
     }
     void drawEdge(Edge edge, GL2 gl) {
         gl.glColor3d(1, 0, 0);
@@ -77,8 +86,8 @@ public class Joint extends Clickable {
         leaf.joints.add(joint1);
         leaf.joints.add(joint2);
         leaf.countSquare();
-        edges.add(new Edge(joint1, 0.008));
-        edges.add(new Edge(joint2, 0.008));
+        addEdge(joint1, 0.008);
+        addEdge(joint2, 0.008);
     }
     void genLeaves(double prob, double probFactor1, double probFactor2, Random random) {
         double nprob = prob;
@@ -99,7 +108,8 @@ public class Joint extends Clickable {
             Vector3 a = Vector3.random(0.1, 0.5, random);
             if (a.y > 0)
                 a.y = -a.y;
-            edges.add(new Edge(new Joint(plant, pos.add(a)), 0.008));
+
+            addEdge(new Joint(plant, pos.add(a)), 0.008);
             nprob *= probFactor1;
         }
         for (Edge edge : edges)
@@ -157,12 +167,12 @@ public class Joint extends Clickable {
             double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeDelta * edge.square();
             waterDelta -= flowed;
             edge.to.waterDelta += flowed;
-            double glucoseFlowed;
+            double glucoseFlowed = 0;
             // as if water flowed to edge.to, back and again to edge.to, mixing glucose every time
-            if (flowed > 0)
-                glucoseFlowed = flowed * (2 * glucose / water - edge.to.glucose / edge.to.water);
-            else
-                glucoseFlowed = flowed * (glucose / water - 2 * edge.to.glucose / edge.to.water);
+            if (flowed > Main.eps && flowed < water)
+                glucoseFlowed = flowed * (2 * glucose / water - edge.to.glucose / (edge.to.water + flowed));
+            else if (flowed < -Main.eps && -flowed < edge.to.water)
+                glucoseFlowed = flowed * (glucose / (water + flowed) - 2 * edge.to.glucose / edge.to.water);
             glucoseDelta -= glucoseFlowed;
             edge.to.glucoseDelta += glucoseFlowed;
         }
@@ -179,6 +189,7 @@ public class Joint extends Clickable {
     }
     String[] info() {
         return new String[] {"Joint",
+                "Position: " + pos,
                 String.format("Water: %.3f", water),
                 String.format("Glucose: %.2f", glucose),
                 String.format("Volume: %.2f", volume)};
