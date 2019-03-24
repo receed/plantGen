@@ -8,8 +8,10 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.function.Consumer;
 
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
@@ -68,7 +70,9 @@ public class Main implements GLEventListener {
     static Clickable clickedObject, selectedObject;
     static double clickedObjectDistance;
     static double eps = 1e-10;
-
+    static String commandBuffer = "";
+    static int commandCount = 0;
+    static HashSet<String> commands = new HashSet<>(Arrays.asList("g]", "g[", "gc", "gp", "gg"));
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -461,6 +465,8 @@ public class Main implements GLEventListener {
 //        }
         for (int[] drop : waterOrder) {
             int i = drop[0], j = drop[1], k = drop[2];
+            if (i >= 3 && i < waterMapSize - 3 && j >= 3 && j < waterMapSize - 3 && k >= 3 && k < waterMapSize - 3)
+                continue;
             if (i < waterMapSize && j < waterMapSize) {
                 gl.glBegin(GL2.GL_QUADS);
                 waterVertex(i, j, k, step, depthStep, gl);
@@ -562,6 +568,69 @@ public class Main implements GLEventListener {
         selectedObject = newSelected;
         if (selectedObject != null)
             selectedObject.select();
+    }
+
+    static void processChar(char c) {
+        int digit = Character.digit(c, 10);
+        if (digit != -1) {
+            if (commandBuffer.length() > 0) {
+                commandBuffer = "";
+                commandCount = 0;
+            }
+            commandCount = commandCount * 10 + digit;
+        }
+        else {
+            commandBuffer += c;
+            if (commands.contains(commandBuffer)) {
+                commandCount = Math.max(1, Math.min(commandCount, 100));
+                for (int i = 0; i < Math.min(commandCount, 100); i++)
+                    processCommand(commandBuffer);
+                commandBuffer = "";
+                commandCount = 0;
+            }
+        }
+    }
+
+    static void processCommand(String type) {
+        switch (type.charAt(0)) {
+            case 'g':
+                if (!(selectedObject instanceof Joint))
+                    return;
+                Joint joint = (Joint) selectedObject, parent = joint.parent();
+                switch (type.charAt(1)) {
+                    case 'c':
+                        if (!joint.edges.isEmpty())
+                            select(joint.edges.get(0).to);
+                    break;
+                    case 'p':
+                        select(parent);
+                    break;
+                    case 'g':
+                        select(joint.plant.root);
+                    break;
+                    case ']':
+                        if (parent != null) {
+                            ListIterator<Edge> it = parent.edges.listIterator();
+                            while (it.next().to != joint);
+                            if (it.hasNext())
+                                select(it.next().to);
+                            else
+                                select(parent.edges.getFirst().to);
+                        }
+                    break;
+                    case '[':
+                        if (parent != null) {
+                            ListIterator<Edge> it = parent.edges.listIterator();
+                            while (it.next().to != joint);
+                            it.previous();
+                            if (it.hasPrevious())
+                                select(it.previous().to);
+                            else
+                                select(parent.edges.getLast().to);
+                        }
+                    break;
+                }
+        }
     }
 
     @Override
@@ -770,7 +839,7 @@ public class Main implements GLEventListener {
                         fill = !fill; break;
                     case KeyEvent.VK_R:
                         genLandscape(); break;
-                    case KeyEvent.VK_ESCAPE:
+                    case KeyEvent.VK_Q:
                         System.exit(0); break;
                     case KeyEvent.VK_UP:
                         ballZ = 1; break;
@@ -803,11 +872,18 @@ public class Main implements GLEventListener {
                     case KeyEvent.VK_LEFT:
                     case KeyEvent.VK_RIGHT:
                         ballX = 0; break;
-                    case KeyEvent.VK_P:
-                        if (Main.selectedObject instanceof Joint) {
-                            Main.select(((Joint) Main.selectedObject).parent());
-                        }
+//                    case KeyEvent.VK_P:
+//                        if (Main.selectedObject instanceof Joint) {
+//                            Main.select(((Joint) Main.selectedObject).parent());
+//                        }
+//                    break;
+                    case KeyEvent.VK_ESCAPE:
+                        Main.commandCount = 0;
+                        Main.commandBuffer = "";
                     break;
+                    default:
+                        if (33 <= keyEvent.getKeyChar() && keyEvent.getKeyChar() <= 126)
+                           Main.processChar(keyEvent.getKeyChar());
                 }
             }
         });

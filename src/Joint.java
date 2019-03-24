@@ -37,7 +37,7 @@ public class Joint extends Clickable {
         Vector3 v = edge.to.pos.sub(pos), axes = Vector3.up.cross(v);
         gl.glTranslated(pos.x, pos.y, pos.z);
         gl.glRotated(Math.toDegrees(v.angle(Vector3.up)), axes.x, axes.y, axes.z);
-        gl.glScaled(edge.width, v.len(), edge.width);
+        gl.glScaled(edge.getWidth(), v.len(), edge.getWidth());
         gl.glTranslated(0, 0.5, 0);
         Main.cylinder(gl);
         gl.glPopMatrix();
@@ -129,7 +129,7 @@ public class Joint extends Clickable {
             double length = Math.min(absorbLength, l - d);
             int x = (int) Math.round(absorbPos.x), y = (int) Math.round(absorbPos.y), z = (int) Math.round(absorbPos.z);
             if (Main.insideWaterMap(x, y, z)) {
-                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate, Main.waterMap[x][y][z]);
+                double absorbed = Math.min(Math.PI * edge.getWidth() * length * absorbRate, Main.waterMap[x][y][z]);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
             }
