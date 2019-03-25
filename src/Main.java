@@ -573,7 +573,7 @@ public class Main implements GLEventListener {
     static void processChar(char c) {
         int digit = Character.digit(c, 10);
         if (digit != -1) {
-            if (commandBuffer.length() > 0) {
+            if (commandBuffer.length() > 0 || commandCount >= 1e7) {
                 commandBuffer = "";
                 commandCount = 0;
             }
@@ -589,6 +589,13 @@ public class Main implements GLEventListener {
                 commandCount = 0;
             }
         }
+    }
+
+    static void popFromBuffer() {
+        if (commandBuffer.length() > 0)
+            commandBuffer = commandBuffer.substring(0, commandBuffer.length() - 1);
+        else
+            commandCount /= 10;
     }
 
     static void processCommand(String type) {
@@ -877,7 +884,9 @@ public class Main implements GLEventListener {
                         Main.commandCount = 0;
                         Main.commandBuffer = "";
                     break;
-                    
+                    case KeyEvent.VK_BACK_SPACE:
+                        Main.popFromBuffer();
+                    break;
                     default:
                         if (33 <= keyEvent.getKeyChar() && keyEvent.getKeyChar() <= 126)
                            Main.processChar(keyEvent.getKeyChar());
