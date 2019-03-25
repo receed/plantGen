@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Joint extends Clickable {
     double absorbLength = 0.5, absorbRate = 0.1;
-    Vector3 pos;
+    Vector3 pos, growth;
     long visited = 0;
     double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 1, youngModulus = 1;
     LinkedList<Leaf> leaves = new LinkedList<>();
@@ -39,7 +39,7 @@ public class Joint extends Clickable {
         Vector3 v = edge.to.pos.sub(pos), axes = Vector3.up.cross(v);
         gl.glTranslated(pos.x, pos.y, pos.z);
         gl.glRotated(Math.toDegrees(v.angle(Vector3.up)), axes.x, axes.y, axes.z);
-        gl.glScaled(edge.getWidth(), v.len(), edge.getWidth());
+        gl.glScaled(edge.width, v.len(), edge.width);
         gl.glTranslated(0, 0.5, 0);
         Main.cylinder(gl);
         gl.glPopMatrix();
@@ -69,10 +69,17 @@ public class Joint extends Clickable {
 //        if (pos.y > 0 && Main.random.nextDouble() < Main.timeDelta * 6e-6)
 //            genSeed();
     }
-    void grow(Vector3 v) {
-        pos = pos.add(v);
-        for (Edge edge : edges)
-            edge.to.grow(v);
+    void grow() {
+        pos = pos.add(growth);
+        for (Edge edge : edges) {
+            edge.to.growth = edge.to.growth.add(growth);
+            edge.to.grow();
+        }
+        growth = new Vector3();
+    }
+    void grow(double len) {
+        if (parentEdge != null)
+            growth = growth.add(pos.sub(parentEdge.to.pos).norm(len));
     }
     void addLeaf(Edge edge1, Edge edge2) {
         Leaf leaf = new Leaf(plant);
@@ -82,9 +89,9 @@ public class Joint extends Clickable {
         leaf.edges.add(edge2);
         leaf.countSquare();
     }
-    void genLeaf(Plant plant, Random random) {
-        Vector3 a = Vector3.random(0.1, 0.5, random);
-        Vector3 b = Vector3.random(0.1, 0.5, random);
+    void genLeaf(double minLength, double maxLength) {
+        Vector3 a = Vector3.random(minLength, maxLength, Main.random);
+        Vector3 b = Vector3.random(minLength, maxLength, Main.random);
         if (a.y < 0)
             a.y = -a.y;
         if (b.y < 0)
@@ -92,35 +99,43 @@ public class Joint extends Clickable {
         Joint joint1 = new Joint(plant, pos.add(a.mul(5))), joint2 = new Joint(plant, pos.add(b.mul(5)));
         addLeaf(addEdge(joint1, 0.008), addEdge(joint2, 0.008));
     }
-    void genLeaves(double prob, double probFactor1, double probFactor2, Random random) {
+    void genLeaf() {
+        genLeaf(0.1, 0.5);
+    }
+    void genLeaves(double prob, double probFactor1, double probFactor2) {
         double nprob = prob;
-        while (random.nextDouble() < nprob) {
-            genLeaf(plant, random);
+        while (Main.random.nextDouble() < nprob) {
+            genLeaf();
             nprob *= probFactor1;
         }
         for (Edge edge : edges)
             if (!edge.isRoot())
-                edge.to.genLeaves(prob * probFactor2, probFactor1, probFactor2, random);
+                edge.to.genLeaves(prob * probFactor2, probFactor1, probFactor2);
     }
-    void genLeaves(double prob, Random random) {
-        genLeaves(prob, 0.97, 0.25, random);
+    void genLeaves(double prob) {
+        genLeaves(prob, 0.97, 0.25);
     }
-    void genRoots(double prob, double probFactor1, double probFactor2, Random random) {
+    void genRoot(double minLength, double maxLength) {
+        Vector3 a = Vector3.random(minLength, maxLength, Main.random);
+        if (a.y > 0)
+            a.y = -a.y;
+        addEdge(new Joint(plant, pos.add(a)), 0.008);
+    }
+    void genRoot() {
+        genRoot(0.1, 0.5);
+    }
+    void genRoots(double prob, double probFactor1, double probFactor2) {
         double nprob = prob;
-        while (random.nextDouble() < nprob) {
-            Vector3 a = Vector3.random(0.1, 0.5, random);
-            if (a.y > 0)
-                a.y = -a.y;
-
-            addEdge(new Joint(plant, pos.add(a)), 0.008);
+        while (Main.random.nextDouble() < nprob) {
+            genRoot();
             nprob *= probFactor1;
         }
         for (Edge edge : edges)
             if (edge.isRoot())
-                edge.to.genRoots(prob * probFactor2, probFactor1, probFactor2, random);
+                edge.to.genRoots(prob * probFactor2, probFactor1, probFactor2);
     }
-    void genRoots(double prob, Random random) {
-        genRoots(prob, 0.99, 0.8, random);
+    void genRoots(double prob) {
+        genRoots(prob, 0.99, 0.8);
     }
     void absorb(Edge edge) {
         if (!edge.isRoot())
@@ -132,7 +147,7 @@ public class Joint extends Clickable {
             double length = Math.min(absorbLength, l - d);
             int x = (int) Math.round(absorbPos.x), y = (int) Math.round(absorbPos.y), z = (int) Math.round(absorbPos.z);
             if (Main.insideWaterMap(x, y, z)) {
-                double absorbed = Math.min(Math.PI * edge.getWidth() * length * absorbRate, Main.waterMap[x][y][z]);
+                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate, Main.waterMap[x][y][z]);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
             }
@@ -196,5 +211,15 @@ public class Joint extends Clickable {
                 String.format("Water: %.3f", water),
                 String.format("Glucose: %.2f", glucose),
                 String.format("Volume: %.2f", volume)};
+    }
+    void countGrowCosts() {
+        for (Edge edge : edges)
+            edge.growCost = edge.isRoot() ? edge.square() * Edge.glucosePerRoot : 0;
+        for (Leaf leaf : leaves)
+            for (int i = 0; i < leaf.edges.size() - 1; i++) {
+                double s = pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
+                edges.get(i).growCost += s / pos.dist(edges.get(i).to.pos) * Leaf.glucosePerSquare;
+                edges.get(i + 1).growCost += s / pos.dist(edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
+            }
     }
 }

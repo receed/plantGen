@@ -807,9 +807,9 @@ public class Main implements GLEventListener {
         genLandscape();
         genWater();
         plants.add(plant);
-        plant.root.genLeaves(1, random);
+        plant.root.genLeaves(1);
 //        plant.root.genLeaf(plant, random);
-        plant.root.genRoots(1, random);
+        plant.root.genRoots(1);
 //        plant.root.genLeaf(plant, random);
         final JFrame frame = new JFrame( " Multicolored main" );
         frame.getContentPane().add( glcanvas );

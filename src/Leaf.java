@@ -6,6 +6,7 @@ import java.util.ArrayList;
 public class Leaf extends Clickable {
     double light = 0, square = 0, glucoseSynthesized;
     static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose;
+    static double glucosePerSquare = 1;
     boolean lacksWater = false;
     Joint joint;
     ArrayList<Edge> edges = new ArrayList<>();

@@ -20,8 +20,8 @@ public class Plant {
 
     Plant(Seed seed) {
         root = new Joint(this, seed.pos);
-        root.genLeaves(1, 0, 0, Main.random);
-        root.genRoots(1, 0, 0, Main.random);
+        root.genLeaves(1, 0, 0);
+        root.genRoots(1, 0, 0);
     }
 
     void flow() {
