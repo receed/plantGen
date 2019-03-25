@@ -24,9 +24,11 @@ public class Joint extends Clickable {
         plant.joints.add(this);
         pos = new Vector3(v);
     }
-    void addEdge(Joint to, double width) {
-        edges.add(new Edge(to, width));
+    Edge addEdge(Joint to, double width) {
+        Edge edge = new Edge(to, width);
+        edges.add(edge);
         to.parentEdge = new Edge(this, width);
+        return edge;
     }
     Joint parent() {
         return parentEdge == null ? null : parentEdge.to;
@@ -72,6 +74,14 @@ public class Joint extends Clickable {
         for (Edge edge : edges)
             edge.to.grow(v);
     }
+    void addLeaf(Edge edge1, Edge edge2) {
+        Leaf leaf = new Leaf(plant);
+        leaves.add(leaf);
+        leaf.joint = this;
+        leaf.edges.add(edge1);
+        leaf.edges.add(edge2);
+        leaf.countSquare();
+    }
     void genLeaf(Plant plant, Random random) {
         Vector3 a = Vector3.random(0.1, 0.5, random);
         Vector3 b = Vector3.random(0.1, 0.5, random);
@@ -79,15 +89,8 @@ public class Joint extends Clickable {
             a.y = -a.y;
         if (b.y < 0)
             b.y = -b.y;
-        Leaf leaf = new Leaf(plant);
-        leaves.add(leaf);
         Joint joint1 = new Joint(plant, pos.add(a.mul(5))), joint2 = new Joint(plant, pos.add(b.mul(5)));
-        leaf.joints.add(this);
-        leaf.joints.add(joint1);
-        leaf.joints.add(joint2);
-        leaf.countSquare();
-        addEdge(joint1, 0.008);
-        addEdge(joint2, 0.008);
+        addLeaf(addEdge(joint1, 0.008), addEdge(joint2, 0.008));
     }
     void genLeaves(double prob, double probFactor1, double probFactor2, Random random) {
         double nprob = prob;

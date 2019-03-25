@@ -352,18 +352,18 @@ public class Main implements GLEventListener {
         for (Plant plant : plants)
             for (Leaf leaf : plant.leaves) {
                 leaf.light = 0;
-                for (Joint joint : leaf.joints) {
-                    minX = Math.min(minX, joint.pos.x);
-                    maxX = Math.max(maxX, joint.pos.x);
-                    minY = Math.min(minY, joint.pos.y);
-                    maxY = Math.max(maxY, joint.pos.y);
+                for (Vector3 point : leaf.getPoints()) {
+                    minX = Math.min(minX, point.x);
+                    maxX = Math.max(maxX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxY = Math.max(maxY, point.y);
                 }
             }
         for (Plant plant : plants)
             for (Leaf leaf : plant.leaves) {
-                for (int i = 1; i < leaf.joints.size() - 1; i++)
-                    fillTriangle(rot.mul(leaf.joints.get(0).pos), rot.mul(leaf.joints.get(i).pos), rot.mul(leaf.joints.get(i + 1).pos),
-                            leaf, minX, maxX, minY, maxY);
+                for (int i = 0; i < leaf.edges.size() - 1; i++)
+                    fillTriangle(rot.mul(leaf.joint.pos), rot.mul(leaf.edges.get(i).to.pos),
+                            rot.mul(leaf.edges.get(i + 1).to.pos), leaf, minX, maxX, minY, maxY);
             }
         double lightPerCell = density * (maxX - minX) * (maxY - minY) / Math.pow(bufferSize, 2);
         for (int i = 0; i < bufferSize; i++)
@@ -671,14 +671,14 @@ public class Main implements GLEventListener {
         camera.look(glu);
 //        ball.move(0.1, gl);
         drawMousePointer(gl);
-        landscape(gl);
+//        landscape(gl);
         for (Plant plant1 : plants) {
             plant1.water = 0;
             plant1.root.absorb(plant);
             plant1.flow();
             plant1.root.dfs(time, gl);
         }
-        flowWater();
+//        flowWater();
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));
         skybox(gl);
         getLighting(plants, sunAxis, sunAngle, 1);

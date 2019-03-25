@@ -7,7 +7,8 @@ public class Leaf extends Clickable {
     double light = 0, square = 0, glucoseSynthesized;
     static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose;
     boolean lacksWater = false;
-    ArrayList<Joint> joints = new ArrayList<>();
+    Joint joint;
+    ArrayList<Edge> edges = new ArrayList<>();
     Plant plant;
 
     Leaf(Plant plant) {
@@ -16,26 +17,26 @@ public class Leaf extends Clickable {
     }
 
     void countSquare() {
-        for (int i = 1; i + 1 < joints.size(); i++)
-            square += joints.get(0).pos.square(joints.get(i).pos, joints.get(i + 1).pos);
+        for (int i = 0; i + 1 < edges.size(); i++)
+            square += joint.pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
     }
 
     void evaporate() {
         double evaporated = square * evaporationRate * (1 - Main.humidity) * Main.timeDelta;
-        if (evaporated < joints.get(0).water) {
+        if (evaporated < joint.water) {
             lacksWater = true;
-            joints.get(0).water = 0;
+            joint.water = 0;
         }
         else {
             lacksWater = false;
-            joints.get(0).water -= evaporated;
+            joint.water -= evaporated;
         }
     }
 
     void photosynthesis(double maxWater) {
-        glucoseSynthesized = Math.min(Math.min(maxWater, joints.get(0).water) / waterPerGlucose, light / lightPerGlucose);
-        joints.get(0).water -= glucoseSynthesized * waterPerGlucose;
-        joints.get(0).glucose += glucoseSynthesized;
+        glucoseSynthesized = Math.min(Math.min(maxWater, joint.water) / waterPerGlucose, light / lightPerGlucose);
+        joint.water -= glucoseSynthesized * waterPerGlucose;
+        joint.glucose += glucoseSynthesized;
     }
 
     void draw(GL2 gl) {
@@ -47,18 +48,19 @@ public class Leaf extends Clickable {
             gl.glColor3d(0.59, 0.16, 0.11);
         else
             gl.glColor3d(0.25, 1, 0.1);
-        Vector3 n = joints.get(0).pos.normal(joints.get(1).pos, joints.get(2).pos);
+        Vector3 n = joint.pos.normal(edges.get(0).to.pos, edges.get(1).to.pos);
         gl.glNormal3d(n.x, n.y, n.z);
         gl.glBegin(GL2.GL_TRIANGLE_FAN);
-        for (Joint joint : joints)
-            joint.pos.draw(gl);
+        joint.pos.draw(gl);
+        for (Edge edge : edges)
+            edge.to.pos.draw(gl);
         gl.glEnd();
         if (selected)
             gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {0, 0, 0, 1}, 0);
     }
     @Override
     public double distByRay(Vector3 from, Vector3 dir) {
-        return from.distByRay(dir, joints.get(0).pos, joints.get(1).pos, joints.get(2).pos);
+        return from.distByRay(dir, joint.pos, edges.get(0).to.pos, edges.get(1).to.pos);
     }
     @Override
     public String toString() {
@@ -69,5 +71,12 @@ public class Leaf extends Clickable {
                 String.format("Square: %.3f", square),
                 String.format("Light: %.2f", light),
                 String.format("Glucose produced: %.2f", glucoseSynthesized)};
+    }
+    ArrayList<Vector3> getPoints() {
+        ArrayList<Vector3> list = new ArrayList<>();
+        list.add(joint.pos);
+        for (Edge edge : edges)
+            list.add(edge.to.pos);
+        return list;
     }
 }
