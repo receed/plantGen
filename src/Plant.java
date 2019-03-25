@@ -30,4 +30,19 @@ public class Plant {
         for (Joint joint : joints)
             joint.pushDeltas();
     }
+
+    void photosynthesis() {
+        for (Joint joint : joints)
+            for (Leaf leaf : joint.leaves)
+                leaf.photosynthesis(1e9);
+    }
+
+    void grow() {
+        for (Joint joint : new LinkedList<Joint>(joints))
+            joint.randomGrow();
+        root.grow();
+    }
+    void absorb() {
+        root.absorb();
+    }
 }

@@ -11,6 +11,10 @@ public class Seed {
         rotationAxis = speed.cross(acc).norm();
     }
 
+    Seed(Vector3 pos) {
+        this(pos, new Vector3(), Vector3.up.mul(-Main.gravity));
+    }
+
     void move() {
         pos = pos.add(speed.add(acc.mul(0.5 * Main.timeDelta)).mul(Main.timeDelta));
         speed = speed.add(acc.mul(Main.timeDelta));

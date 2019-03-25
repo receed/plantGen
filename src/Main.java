@@ -50,12 +50,12 @@ public class Main implements GLEventListener {
     static double cameraDistance = 0;
     static double inf = Double.POSITIVE_INFINITY;
     Ball ball = new Ball(new Vector3(5, 0, 5));
-    static Plant plant = new Plant();
+    static Plant plant = new Plant(new Seed(new Vector3()));
     static LinkedList<Plant> plants = new LinkedList<>();
     static double sunAngle = 0;
     static Vector3 sunAxis = new Vector3(0, 0, 1);
     TextRenderer renderer;
-    static int waterMapSize = 1 << 4, waterMapDepth = 1 << 4;
+    static int waterMapSize = 1 << 3, waterMapDepth = 1 << 3;
     static double waterSize = 4, waterDepth = 4;
     static double[][][] waterMap = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static double[][][] waterMapOld = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
@@ -465,7 +465,7 @@ public class Main implements GLEventListener {
 //        }
         for (int[] drop : waterOrder) {
             int i = drop[0], j = drop[1], k = drop[2];
-            if (i >= 3 && i < waterMapSize - 3 && j >= 3 && j < waterMapSize - 3 && k >= 3 && k < waterMapSize - 3)
+            if (i >= 2 && i < waterMapSize - 2 && j >= 2 && j < waterMapSize - 2 && k >= 2 && k < waterMapSize - 2)
                 continue;
             if (i < waterMapSize && j < waterMapSize) {
                 gl.glBegin(GL2.GL_QUADS);
@@ -610,23 +610,16 @@ public class Main implements GLEventListener {
                     break;
                     case ']':
                         if (parent != null) {
-                            ListIterator<Edge> it = parent.edges.listIterator();
-                            while (it.next().to != joint);
-                            if (it.hasNext())
-                                select(it.next().to);
-                            else
-                                select(parent.edges.getFirst().to);
+                            for (int i = 0; i < parent.edges.size(); i++)
+                                if (parent.edges.get(i).to == joint)
+                                    select(parent.edges.get((i + 1) % parent.edges.size()).to);
                         }
                     break;
                     case '[':
                         if (parent != null) {
-                            ListIterator<Edge> it = parent.edges.listIterator();
-                            while (it.next().to != joint);
-                            it.previous();
-                            if (it.hasPrevious())
-                                select(it.previous().to);
-                            else
-                                select(parent.edges.getLast().to);
+                            for (int i = 0; i < parent.edges.size(); i++)
+                                if (parent.edges.get(i).to == joint)
+                                    select(parent.edges.get((i + parent.edges.size() - 1) % parent.edges.size()).to);
                         }
                     break;
                 }
@@ -650,7 +643,7 @@ public class Main implements GLEventListener {
         camera.rotLR(rotLR * 0.02 /*+ (oldMouseX - mouseX) * 0.015*/);
         camera.rotUD(rotUD * 0.02 /*+ (oldMouseY - mouseY) * 0.015*/);
         sunAngle += 0.005;
-        distanceToScreen = windowHeight / 2 / Math.tan(Math.toRadians(viewAngle) / 2);
+        distanceToScreen = windowHeight / Math.tan(Math.toRadians(viewAngle) / 2) / 2;
         mouseVector = camera.dir.mul(distanceToScreen).add(camera.up.mul(-mouseY + windowHeight / 2.0)).add(
                 camera.right().mul(mouseX - windowWidth / 2.0)).norm();
         oldMouseX = mouseX;
@@ -674,8 +667,10 @@ public class Main implements GLEventListener {
 //        landscape(gl);
         for (Plant plant1 : plants) {
             plant1.water = 0;
-            plant1.root.absorb(plant);
+            plant1.absorb();
+            plant1.photosynthesis();
             plant1.flow();
+            plant1.grow();
             plant1.root.dfs(time, gl);
         }
 //        flowWater();
@@ -694,6 +689,7 @@ public class Main implements GLEventListener {
         renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
         renderer.setColor(0, 1, 0.4f, 0.9f);
         renderer.draw("Total light received: " + plant.getLight(), 5, 5);
+        renderer.draw((commandCount == 0 ? commandBuffer : commandCount + commandBuffer), 5, 20);
         if (selectedObject != null) {
             String[] selectedInfo = selectedObject.info();
             double textY = windowHeight - 10;
@@ -807,9 +803,9 @@ public class Main implements GLEventListener {
         genLandscape();
         genWater();
         plants.add(plant);
-        plant.root.genLeaves(1);
+//        plant.root.genLeaves(1);
 //        plant.root.genLeaf(plant, random);
-        plant.root.genRoots(1);
+//        plant.root.genRoots(1);
 //        plant.root.genLeaf(plant, random);
         final JFrame frame = new JFrame( " Multicolored main" );
         frame.getContentPane().add( glcanvas );
@@ -881,6 +877,7 @@ public class Main implements GLEventListener {
                         Main.commandCount = 0;
                         Main.commandBuffer = "";
                     break;
+                    
                     default:
                         if (33 <= keyEvent.getKeyChar() && keyEvent.getKeyChar() <= 126)
                            Main.processChar(keyEvent.getKeyChar());

@@ -1,5 +1,6 @@
 import com.jogamp.opengl.GL2;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Random;
 
@@ -8,21 +9,21 @@ public class Joint extends Clickable {
     Vector3 pos, growth;
     long visited = 0;
     double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 1, youngModulus = 1;
+    double totalGrowCost = 0;
     LinkedList<Leaf> leaves = new LinkedList<>();
-    LinkedList<Edge> edges = new LinkedList<>();
+    ArrayList<Edge> edges = new ArrayList<>();
     Plant plant;
     Edge parentEdge;
 
 
     Joint(Plant plant) {
-        this.plant = plant;
-        plant.joints.add(this);
-        pos = new Vector3();
+        this(plant, new Vector3());
     }
     Joint(Plant plant, Vector3 v) {
         this.plant = plant;
         plant.joints.add(this);
         pos = new Vector3(v);
+        growth = new Vector3();
     }
     Edge addEdge(Joint to, double width) {
         Edge edge = new Edge(to, width);
@@ -153,11 +154,11 @@ public class Joint extends Clickable {
             }
         }
     }
-    void absorb(Plant plant) {
+    void absorb() {
         for (Edge edge : edges) {
             if (edge.isRoot()) {
                 absorb(edge);
-                edge.to.absorb(plant);
+                edge.to.absorb();
             }
         }
         plant.water += water;
@@ -213,6 +214,7 @@ public class Joint extends Clickable {
                 String.format("Volume: %.2f", volume)};
     }
     void countGrowCosts() {
+        totalGrowCost = 0;
         for (Edge edge : edges)
             edge.growCost = edge.isRoot() ? edge.square() * Edge.glucosePerRoot : 0;
         for (Leaf leaf : leaves)
@@ -221,5 +223,28 @@ public class Joint extends Clickable {
                 edges.get(i).growCost += s / pos.dist(edges.get(i).to.pos) * Leaf.glucosePerSquare;
                 edges.get(i + 1).growCost += s / pos.dist(edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
             }
+        for (Edge edge : edges)
+            totalGrowCost += edge.growCost;
+    }
+    void randomGrow() {
+        countGrowCosts();
+        if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.3) * Main.timeDelta / 1000) {
+            if (this == plant.root) {
+                if (Main.random.nextDouble() < 0.5)
+                    genRoot(0.01, 0.05);
+                else
+                    genLeaf(0.01, 0.05);
+            }
+            else if (pos.y > 0)
+                genLeaf(0.01, 0.05);
+            else
+                genRoot(0.01, 0.05);
+        }
+        else if (!edges.isEmpty() && Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeDelta / 1000) {
+            Edge edge = edges.get(Main.random.nextInt(edges.size()));
+            double len = glucose / 2 / edge.growCost;
+            glucose -= len * edge.growCost;
+            edge.to.grow(len);
+        }
     }
 }
