@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import java.util.Random;
 
 public class Joint extends Clickable {
-    double absorbLength = 0.5, absorbRate = 0.1;
+    double absorbLength = 0.5, absorbRate = 2;
     Vector3 pos, growth;
     long visited = 0;
     double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 1, youngModulus = 1;
@@ -98,7 +98,7 @@ public class Joint extends Clickable {
         if (b.y < 0)
             b.y = -b.y;
         Joint joint1 = new Joint(plant, pos.add(a.mul(5))), joint2 = new Joint(plant, pos.add(b.mul(5)));
-        addLeaf(addEdge(joint1, 0.008), addEdge(joint2, 0.008));
+        addLeaf(addEdge(joint1, 0.01), addEdge(joint2, 0.01));
     }
     void genLeaf() {
         genLeaf(0.1, 0.5);
@@ -120,7 +120,7 @@ public class Joint extends Clickable {
         Vector3 a = Vector3.random(minLength, maxLength, Main.random);
         if (a.y > 0)
             a.y = -a.y;
-        addEdge(new Joint(plant, pos.add(a)), 0.008);
+        addEdge(new Joint(plant, pos.add(a)), 0.01);
     }
     void genRoot() {
         genRoot(0.1, 0.5);
@@ -146,11 +146,14 @@ public class Joint extends Clickable {
         for (double d = 0; d < l; d += absorbLength) {
             Vector3 absorbPos = pos.add(v.mul(d / l));
             double length = Math.min(absorbLength, l - d);
-            int x = (int) Math.round(absorbPos.x), y = (int) Math.round(absorbPos.y), z = (int) Math.round(absorbPos.z);
+            int x = (int) Math.round((absorbPos.x + Main.waterSize / 2) / Main.waterSize * Main.waterMapSize),
+                    y = (int) Math.round((absorbPos.z + Main.waterSize / 2) / Main.waterSize * Main.waterMapSize),
+                    z = (int) Math.round(-absorbPos.y / Main.waterDepth * Main.waterMapDepth);
             if (Main.insideWaterMap(x, y, z)) {
-                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate, Main.waterMap[x][y][z]);
+                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate * Main.timeStep, Main.waterMap[x][y][z]);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
+                System.out.println(absorbed);
             }
         }
     }
@@ -183,7 +186,7 @@ public class Joint extends Clickable {
         for (Edge edge : edges) {
             double p1 = edge.to.pressure();
             double squaredSpeed = ((p - p1) / Main.waterDensity + (pos.y - edge.to.pos.y) * Main.gravity) * 2;
-            double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeDelta * edge.square();
+            double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeStep * edge.square() / 1000;
             waterDelta -= flowed;
             edge.to.waterDelta += flowed;
             double glucoseFlowed = 0;
@@ -228,7 +231,7 @@ public class Joint extends Clickable {
     }
     void randomGrow() {
         countGrowCosts();
-        if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.3) * Main.timeDelta / 1000) {
+        if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeStep) {
             if (this == plant.root) {
                 if (Main.random.nextDouble() < 0.5)
                     genRoot(0.01, 0.05);
@@ -240,11 +243,14 @@ public class Joint extends Clickable {
             else
                 genRoot(0.01, 0.05);
         }
-        else if (!edges.isEmpty() && Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeDelta / 1000) {
+        else if (!edges.isEmpty()) {
             Edge edge = edges.get(Main.random.nextInt(edges.size()));
-            double len = glucose / 2 / edge.growCost;
-            glucose -= len * edge.growCost;
-            edge.to.grow(len);
+            assert edge.growCost > Main.eps;
+            if (Main.random.nextDouble() < glucose / (glucose + edge.growCost * 0.1) * Main.timeStep) {
+                double len = glucose / 2 / edge.growCost;
+                glucose -= len * edge.growCost;
+                edge.to.grow(len);
+            }
         }
     }
 }

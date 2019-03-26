@@ -39,6 +39,7 @@ public class Main implements GLEventListener {
     public static int widthMap = 63;
     public static int heightMap = 63;
     static long time = 0, oldTime = 0, timeDelta = 0;
+    static double timeStep = 0, timeFactor = 1;
     static double[][] height = new double[widthMap][heightMap];
     static final int bufferSize = 500;
     static double[][] maxHeight = new double[bufferSize][bufferSize];
@@ -47,7 +48,6 @@ public class Main implements GLEventListener {
             {-1, -1}, {0, -1}, {1, -1}, {1, 0}};
     static final int[][] adj3d = {{0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}};
     static Random random = new Random();
-    static double cameraDistance = 0;
     static double inf = Double.POSITIVE_INFINITY;
     Ball ball = new Ball(new Vector3(5, 0, 5));
     static Plant plant = new Plant(new Seed(new Vector3()));
@@ -72,7 +72,7 @@ public class Main implements GLEventListener {
     static double eps = 1e-10;
     static String commandBuffer = "";
     static int commandCount = 0;
-    static HashSet<String> commands = new HashSet<>(Arrays.asList("g]", "g[", "gc", "gp", "gg"));
+    static HashSet<String> commands = new HashSet<>(Arrays.asList("g]", "g[", "gc", "gp", "gg", "t[", "t]", "tt"));
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -242,15 +242,12 @@ public class Main implements GLEventListener {
         for (int k = 0; k < 6; k++) {
             Vector2 peak1 = new Vector2(random, widthMap, heightMap);
             Vector2 peak2 = new Vector2(random, widthMap, heightMap);
-//            System.out.println(peak1 + " " + peak2);
             double factor = 6 + random.nextDouble() * 6;
             for (int i = 0; i < widthMap; i++)
                 for (int j = 0; j < heightMap; j++) {
                     double dist = new Vector2(i, j).distToSegment(peak1, peak2);
                     double mult = 1 + Math.exp(-Math.pow(dist / widthMap * factor, 2));
                     height[i][j] *= mult;
-//                    System.out.println(mult);
-//                    System.out.println(i + " " + j + " " + height[i][j]);
                 }
         }
     }
@@ -353,10 +350,11 @@ public class Main implements GLEventListener {
             for (Leaf leaf : plant.leaves) {
                 leaf.light = 0;
                 for (Vector3 point : leaf.getPoints()) {
-                    minX = Math.min(minX, point.x);
-                    maxX = Math.max(maxX, point.x);
-                    minY = Math.min(minY, point.y);
-                    maxY = Math.max(maxY, point.y);
+                    Vector3 rotatedPoint = rot.mul(point);
+                    minX = Math.min(minX, rotatedPoint.x);
+                    maxX = Math.max(maxX, rotatedPoint.x);
+                    minY = Math.min(minY, rotatedPoint.z);
+                    maxY = Math.max(maxY, rotatedPoint.z);
                 }
             }
         for (Plant plant : plants)
@@ -504,7 +502,7 @@ public class Main implements GLEventListener {
                     for (int l = 0; l < 6; l++) {
                         int ni = i + adj3d[l][0], nj = j + adj3d[l][1], nk = k + adj3d[l][2];
                         if (insideWaterMap(ni, nj, nk)) {
-                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) / 15;
+                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * timeStep;
                             waterMap[i][j][k] -= flow;
                             waterMap[ni][nj][nk] += flow;
                         }
@@ -514,7 +512,6 @@ public class Main implements GLEventListener {
             for (int j = 0; j <= waterMapSize; j++)
                 for (int k = 0; k <= waterMapDepth; k++)
                     sum += waterMap[i][j][k];
-//        System.out.println(sum);
     }
 
     void drawSun(Vector3 sunDir, GL2 gl) {
@@ -581,6 +578,10 @@ public class Main implements GLEventListener {
         }
         else {
             commandBuffer += c;
+            if (commandBuffer.length() > 20) {
+                commandBuffer = "";
+                commandCount = 0;
+            }
             if (commands.contains(commandBuffer)) {
                 commandCount = Math.max(1, Math.min(commandCount, 100));
                 for (int i = 0; i < Math.min(commandCount, 100); i++)
@@ -630,6 +631,20 @@ public class Main implements GLEventListener {
                         }
                     break;
                 }
+                break;
+            case 't':
+                switch (type.charAt(1)) {
+                    case ']':
+                        timeFactor *= 1.01;
+                        break;
+                    case '[':
+                        timeFactor /= 1.01;
+                        break;
+                    case 't':
+                        timeFactor = 1;
+                        break;
+                }
+                break;
         }
     }
 
@@ -643,13 +658,13 @@ public class Main implements GLEventListener {
         time = System.currentTimeMillis();
         if (oldTime == 0)
             oldTime = time;
-        timeDelta = time - oldTime;
-        camera.strafeFB(strafeFB * 0.1);
-        cameraDistance -= strafeFB * 0.1;
-        camera.strafeLR(strafeLR * 0.1);
-        camera.rotLR(rotLR * 0.02 /*+ (oldMouseX - mouseX) * 0.015*/);
-        camera.rotUD(rotUD * 0.02 /*+ (oldMouseY - mouseY) * 0.015*/);
-        sunAngle += 0.005;
+        timeDelta = Math.min(time - oldTime, 100);
+        timeStep = timeDelta * timeFactor / 1000;
+        camera.strafeFB(strafeFB * 0.0025 * timeDelta);
+        camera.strafeLR(strafeLR * 0.0025 * timeDelta);
+        camera.rotLR(rotLR * 0.0005 * timeDelta /*+ (oldMouseX - mouseX) * 0.015*/);
+        camera.rotUD(rotUD * 0.0005 * timeDelta /*+ (oldMouseY - mouseY) * 0.015*/);
+        sunAngle += 0.2 * timeStep;
         distanceToScreen = windowHeight / Math.tan(Math.toRadians(viewAngle) / 2) / 2;
         mouseVector = camera.dir.mul(distanceToScreen).add(camera.up.mul(-mouseY + windowHeight / 2.0)).add(
                 camera.right().mul(mouseX - windowWidth / 2.0)).norm();
@@ -667,20 +682,20 @@ public class Main implements GLEventListener {
         Vector3 sunDir = new Vector3(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 10, 0);
 //        ball.setSpeed(camera.dir.x * ballZ,
 //                camera.dir.cross(camera.up).z * -ballX);
-//        camera.pos = ball.pos.add(camera.dir.mul(-cameraDistance));
         camera.look(glu);
 //        ball.move(0.1, gl);
         drawMousePointer(gl);
 //        landscape(gl);
         for (Plant plant1 : plants) {
             plant1.water = 0;
+            plant1.countLeafSquares();
             plant1.absorb();
             plant1.photosynthesis();
             plant1.flow();
-            plant1.grow();
+//            plant1.grow();
             plant1.root.dfs(time, gl);
         }
-//        flowWater();
+        flowWater();
 //        camera.pos = ball.pos.add(camera.dir.mul(-2));
         skybox(gl);
         getLighting(plants, sunAxis, sunAngle, 1);

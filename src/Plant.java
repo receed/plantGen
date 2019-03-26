@@ -45,4 +45,8 @@ public class Plant {
     void absorb() {
         root.absorb();
     }
+    void countLeafSquares() {
+        for (Leaf leaf : leaves)
+            leaf.countSquare();
+    }
 }

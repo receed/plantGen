@@ -5,8 +5,8 @@ import java.util.ArrayList;
 
 public class Leaf extends Clickable {
     double light = 0, square = 0, glucoseSynthesized;
-    static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose = 1;
-    static double glucosePerSquare = 1;
+    static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose = 10;
+    static double glucosePerSquare = 0.01;
     boolean lacksWater = false;
     Joint joint;
     ArrayList<Edge> edges = new ArrayList<>();
@@ -18,12 +18,13 @@ public class Leaf extends Clickable {
     }
 
     void countSquare() {
+        square = 0;
         for (int i = 0; i + 1 < edges.size(); i++)
             square += joint.pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
     }
 
     void evaporate() {
-        double evaporated = square * evaporationRate * (1 - Main.humidity) * Main.timeDelta;
+        double evaporated = square * evaporationRate * (1 - Main.humidity) * Main.timeStep;
         if (evaporated < joint.water) {
             lacksWater = true;
             joint.water = 0;
@@ -70,8 +71,8 @@ public class Leaf extends Clickable {
     String[] info() {
         return new String[] {"Leaf",
                 String.format("Square: %.3f", square),
-                String.format("Light: %.2f", light),
-                String.format("Glucose produced: %.2f", glucoseSynthesized)};
+                String.format("Light: %.3f", light),
+                String.format("Glucose produced per second: %.3f", glucoseSynthesized / Main.timeStep)};
     }
     ArrayList<Vector3> getPoints() {
         ArrayList<Vector3> list = new ArrayList<>();
