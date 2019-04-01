@@ -5,6 +5,7 @@ public class Plant {
     Joint root;
     LinkedList<Leaf> leaves = new LinkedList<>();
     LinkedList<Joint> joints = new LinkedList<>();
+    Model leafModel, rootModel;
     double water = 0;
 
     double getLight() {
@@ -16,12 +17,26 @@ public class Plant {
 
     Plant() {
         root = new Joint(this);
+        leafModel = new Model(8, 8, 8);
+        leafModel.randomInit();
+        rootModel = new Model(8, 6, 4);
+        rootModel.randomInit();
     }
 
     Plant(Seed seed) {
         root = new Joint(this, seed.pos);
-        root.genLeaves(1, 0, 0);
-        root.genRoots(1, 0, 0);
+        root.genLeaf(0.01, 0.05);
+        root.genRoot(0.01, 0.05);
+        if (seed.rootModel == null) {
+            leafModel = new Model(8, 8, 8);
+            leafModel.randomInit();
+            rootModel = new Model(8, 6, 4);
+            rootModel.randomInit();
+        }
+        else {
+            rootModel = seed.rootModel;
+            leafModel = seed.leafModel;
+        }
     }
 
     void flow() {
@@ -37,9 +52,14 @@ public class Plant {
                 leaf.photosynthesis(1e9);
     }
 
-    void grow() {
-        for (Joint joint : new LinkedList<Joint>(joints))
+    void randomGrow() {
+        for (Joint joint : new LinkedList<>(joints))
             joint.randomGrow();
+        root.grow();
+    }
+    void modelGrow() {
+        for (Joint joint : new LinkedList<>(joints))
+            joint.modelGrow();
         root.grow();
     }
     void absorb() {

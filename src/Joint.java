@@ -1,15 +1,17 @@
 import com.jogamp.opengl.GL2;
 
+import javax.jws.WebParam;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Random;
 
 public class Joint extends Clickable {
-    double absorbLength = 0.5, absorbRate = 2;
+    double absorbLength = 0.5, absorbRate = 0.1;
     Vector3 pos, growth;
     long visited = 0;
-    double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 1, youngModulus = 1;
+    double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 0.002, youngModulus = 1;
     double totalGrowCost = 0;
+
     LinkedList<Leaf> leaves = new LinkedList<>();
     ArrayList<Edge> edges = new ArrayList<>();
     Plant plant;
@@ -67,8 +69,6 @@ public class Joint extends Clickable {
                     drawEdge(edge, gl);
                 edge.to.dfs(time, gl);
             }
-//        if (pos.y > 0 && Main.random.nextDouble() < Main.timeDelta * 6e-6)
-//            genSeed();
     }
     void grow() {
         pos = pos.add(growth);
@@ -82,26 +82,35 @@ public class Joint extends Clickable {
         if (parentEdge != null)
             growth = growth.add(pos.sub(parentEdge.to.pos).norm(len));
     }
-    void addLeaf(Edge edge1, Edge edge2) {
+    Leaf addLeaf(Edge edge1, Edge edge2) {
         Leaf leaf = new Leaf(plant);
         leaves.add(leaf);
         leaf.joint = this;
         leaf.edges.add(edge1);
         leaf.edges.add(edge2);
         leaf.countSquare();
+        return leaf;
     }
-    void genLeaf(double minLength, double maxLength) {
+    Leaf genLeaf(double minLength, double maxLength) {
         Vector3 a = Vector3.random(minLength, maxLength, Main.random);
         Vector3 b = Vector3.random(minLength, maxLength, Main.random);
         if (a.y < 0)
             a.y = -a.y;
         if (b.y < 0)
             b.y = -b.y;
-        Joint joint1 = new Joint(plant, pos.add(a.mul(5))), joint2 = new Joint(plant, pos.add(b.mul(5)));
-        addLeaf(addEdge(joint1, 0.01), addEdge(joint2, 0.01));
+        Joint joint1 = new Joint(plant, pos.add(a)), joint2 = new Joint(plant, pos.add(b));
+        return addLeaf(addEdge(joint1, 0.01), addEdge(joint2, 0.01));
     }
-    void genLeaf() {
-        genLeaf(0.1, 0.5);
+    Leaf genLeaf() {
+        return genLeaf(0.1, 0.5);
+    }
+    Leaf modelGenLeaf() {
+        Vector3 par = parentEdge == null ? new Vector3() : pos.sub(parentEdge.to.pos);
+        double[] plan = plant.leafModel.apply(pos.x, pos.y, pos.z, par.x, par.y, par.z, water, glucose);
+        Vector3 a = new Vector3(plan[0], -Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
+        Vector3 b = new Vector3(plan[4], -Math.abs(plan[5]), plan[6]).norm(0.01 + 0.04 * Model.logistic(plan[7]));
+        Joint joint1 = new Joint(plant, pos.add(a)), joint2 = new Joint(plant, pos.add(b));
+        return addLeaf(addEdge(joint1, 0.01), addEdge(joint2, 0.01));
     }
     void genLeaves(double prob, double probFactor1, double probFactor2) {
         double nprob = prob;
@@ -116,14 +125,20 @@ public class Joint extends Clickable {
     void genLeaves(double prob) {
         genLeaves(prob, 0.97, 0.25);
     }
-    void genRoot(double minLength, double maxLength) {
+    Edge genRoot(double minLength, double maxLength) {
         Vector3 a = Vector3.random(minLength, maxLength, Main.random);
         if (a.y > 0)
             a.y = -a.y;
-        addEdge(new Joint(plant, pos.add(a)), 0.01);
+        return addEdge(new Joint(plant, pos.add(a)), 0.01);
     }
-    void genRoot() {
-        genRoot(0.1, 0.5);
+    Edge genRoot() {
+        return genRoot(0.1, 0.5);
+    }
+    Edge modelGenRoot() {
+        Vector3 par = parentEdge == null ? new Vector3() : pos.sub(parentEdge.to.pos);
+        double[] plan = plant.rootModel.apply(pos.x, pos.y, pos.z, par.x, par.y, par.z, water, glucose);
+        Vector3 a = new Vector3(plan[0], Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
+        return addEdge(new Joint(plant, pos.add(a)), 0.01);
     }
     void genRoots(double prob, double probFactor1, double probFactor2) {
         double nprob = prob;
@@ -150,10 +165,9 @@ public class Joint extends Clickable {
                     y = (int) Math.round((absorbPos.z + Main.waterSize / 2) / Main.waterSize * Main.waterMapSize),
                     z = (int) Math.round(-absorbPos.y / Main.waterDepth * Main.waterMapDepth);
             if (Main.insideWaterMap(x, y, z)) {
-                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate * Main.timeStep, Main.waterMap[x][y][z]);
+                double absorbed = Math.min(Math.PI * edge.width * length * absorbRate * Main.timeStep, Main.waterMap[x][y][z] * 0.6);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
-                System.out.println(absorbed);
             }
         }
     }
@@ -168,8 +182,8 @@ public class Joint extends Clickable {
     }
 
     void genSeed() {
-        Main.seeds.add(new Seed(new Vector3(pos), Vector3.random(1e-3, 2e-3, Main.random),
-                Vector3.up.mul(-1e-7)));
+        Main.seeds.add(new Seed(new Vector3(pos), Vector3.random(1, 2, Main.random),
+                Vector3.up.mul(-0.2), plant));
     }
     @Override
     double distByRay(Vector3 from, Vector3 dir) {
@@ -186,15 +200,20 @@ public class Joint extends Clickable {
         for (Edge edge : edges) {
             double p1 = edge.to.pressure();
             double squaredSpeed = ((p - p1) / Main.waterDensity + (pos.y - edge.to.pos.y) * Main.gravity) * 2;
-            double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeStep * edge.square() / 1000;
-            waterDelta -= flowed;
-            edge.to.waterDelta += flowed;
+            double flowed = Math.sqrt(Math.abs(squaredSpeed)) * Math.signum(squaredSpeed) * Main.timeStep * edge.square();
             double glucoseFlowed = 0;
             // as if water flowed to edge.to, back and again to edge.to, mixing glucose every time
-            if (flowed > Main.eps && flowed < water)
+            flowed = Math.max(Math.min(flowed, water), -edge.to.water);
+            if (Math.abs(flowed) < Main.eps)
+                continue;
+            if (flowed > 0)
                 glucoseFlowed = flowed * (2 * glucose / water - edge.to.glucose / (edge.to.water + flowed));
-            else if (flowed < -Main.eps && -flowed < edge.to.water)
+            else if (flowed < 0)
                 glucoseFlowed = flowed * (glucose / (water + flowed) - 2 * edge.to.glucose / edge.to.water);
+            assert Double.isFinite(glucoseFlowed);
+            waterDelta -= flowed;
+            edge.to.waterDelta += flowed;
+            glucoseFlowed = Math.max(Math.min(glucoseFlowed, glucose), -edge.to.glucose);
             glucoseDelta -= glucoseFlowed;
             edge.to.glucoseDelta += glucoseFlowed;
         }
@@ -207,14 +226,14 @@ public class Joint extends Clickable {
     }
     @Override
     public String toString() {
-        return String.format("Joint\nWater: %.3f\nGlucose: %.3f\nVolume: %.3f\n", water, glucose, volume);
+        return String.format("Joint\nWater: %f\nGlucose: %f\nVolume: %f\n", water, glucose, volume);
     }
     String[] info() {
         return new String[] {"Joint",
                 "Position: " + pos,
-                String.format("Water: %.3f", water),
-                String.format("Glucose: %.2f", glucose),
-                String.format("Volume: %.2f", volume)};
+                String.format("Water: %f", water),
+                String.format("Glucose: %f", glucose),
+                String.format("Volume: %f", volume)};
     }
     void countGrowCosts() {
         totalGrowCost = 0;
@@ -223,31 +242,60 @@ public class Joint extends Clickable {
         for (Leaf leaf : leaves)
             for (int i = 0; i < leaf.edges.size() - 1; i++) {
                 double s = pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
-                edges.get(i).growCost += s / pos.dist(edges.get(i).to.pos) * Leaf.glucosePerSquare;
-                edges.get(i + 1).growCost += s / pos.dist(edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
+                leaf.edges.get(i).growCost += s / pos.dist(edges.get(i).to.pos) * Leaf.glucosePerSquare;
+                leaf.edges.get(i + 1).growCost += s / pos.dist(edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
             }
         for (Edge edge : edges)
             totalGrowCost += edge.growCost;
     }
+    double edgeCost(Edge edge) {
+        return edge.to.pos.sub(pos).len() * edge.square() * Edge.glucosePerRoot;
+    }
     void randomGrow() {
         countGrowCosts();
-        if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeStep) {
-            if (this == plant.root) {
-                if (Main.random.nextDouble() < 0.5)
-                    genRoot(0.01, 0.05);
-                else
-                    genLeaf(0.01, 0.05);
+        assert Double.isFinite(glucose);
+        assert Double.isFinite(totalGrowCost);
+        if (pos.y > 0 && glucose > Seed.minCost && Main.random.nextDouble() < Main.timeStep * 100) {
+            genSeed();
+            glucose -= Seed.minCost;
+        }
+        else if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeStep) {
+            if (this == plant.root && Main.random.nextDouble() < 0.5 || this != plant.root && pos.y < 0) {
+                if (glucose > Edge.minCost)
+                    glucose -= edgeCost(genRoot(0.01, 0.05));
             }
-            else if (pos.y > 0)
-                genLeaf(0.01, 0.05);
-            else
-                genRoot(0.01, 0.05);
+            else if (glucose > Leaf.minCost)
+                glucose -= genLeaf(0.01, 0.05).square * Leaf.glucosePerSquare;
         }
         else if (!edges.isEmpty()) {
             Edge edge = edges.get(Main.random.nextInt(edges.size()));
-            assert edge.growCost > Main.eps;
-            if (Main.random.nextDouble() < glucose / (glucose + edge.growCost * 0.1) * Main.timeStep) {
-                double len = glucose / 2 / edge.growCost;
+            if (Main.random.nextDouble() < glucose / (glucose + edge.growCost * 0.05) * Main.timeStep) {
+                double len = Math.min(glucose / 2 / edge.growCost, 0.5);
+                glucose -= len * edge.growCost;
+                edge.to.grow(len);
+            }
+        }
+        assert Double.isFinite(glucose);
+    }
+
+    void modelGrow() {
+        countGrowCosts();
+        if (pos.y > 0 && glucose > Seed.minCost && Main.random.nextDouble() < Main.timeStep * 100) {
+            genSeed();
+            glucose -= Seed.minCost;
+        }
+        else if (Main.random.nextDouble() < glucose / (glucose + totalGrowCost * 0.2) * Main.timeStep) {
+            if (this == plant.root && Main.random.nextDouble() < 0.5 || this != plant.root && pos.y < 0) {
+                if (glucose > Edge.minCost)
+                    glucose -= edgeCost(modelGenRoot());
+            }
+            else if (glucose > Leaf.minCost)
+                glucose -= modelGenLeaf().square * Leaf.glucosePerSquare;
+        }
+        else if (!edges.isEmpty()) {
+            Edge edge = edges.get(Main.random.nextInt(edges.size()));
+            if (Main.random.nextDouble() < glucose / (glucose + edge.growCost * 0.05) * Main.timeStep) {
+                double len = Math.min(glucose / 2 / edge.growCost, 0.5);
                 glucose -= len * edge.growCost;
                 edge.to.grow(len);
             }

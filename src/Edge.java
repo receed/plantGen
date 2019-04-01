@@ -2,7 +2,7 @@ public class Edge {
     Joint to;
     double width;
     double growCost;
-    static double glucosePerRoot = 1;
+    static double glucosePerRoot = 80, minCost = Math.PI * Math.pow(0.01, 2) / 4 * 0.05 * glucosePerRoot;
 
     Edge(Joint to, double width) {
         this.to = to;

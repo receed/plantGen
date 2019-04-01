@@ -39,7 +39,7 @@ public class Main implements GLEventListener {
     public static int widthMap = 63;
     public static int heightMap = 63;
     static long time = 0, oldTime = 0, timeDelta = 0;
-    static double timeStep = 0, timeFactor = 1;
+    static double timeStep = 0, timeFactor = 1, oldTimeFactor = 1;
     static double[][] height = new double[widthMap][heightMap];
     static final int bufferSize = 500;
     static double[][] maxHeight = new double[bufferSize][bufferSize];
@@ -54,14 +54,14 @@ public class Main implements GLEventListener {
     static LinkedList<Plant> plants = new LinkedList<>();
     static double sunAngle = 0;
     static Vector3 sunAxis = new Vector3(0, 0, 1);
-    TextRenderer renderer;
+    TextTyper typer;
     static int waterMapSize = 1 << 3, waterMapDepth = 1 << 3;
     static double waterSize = 4, waterDepth = 4;
     static double[][][] waterMap = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static double[][][] waterMapOld = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static boolean[][][] absorbed = new boolean[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
-    static double maxWaterInDrop = 0.013;
+    static double maxWaterInDrop = 0.0013;
     static LinkedList<Seed> seeds = new LinkedList<>();
     static double humidity = 0.7, gravity = 9.8, waterDensity = 1;
     static double viewAngle = 45, distanceToScreen;
@@ -72,7 +72,8 @@ public class Main implements GLEventListener {
     static double eps = 1e-10;
     static String commandBuffer = "";
     static int commandCount = 0;
-    static HashSet<String> commands = new HashSet<>(Arrays.asList("g]", "g[", "gc", "gp", "gg", "t[", "t]", "tt"));
+    static HashSet<String> commands = new HashSet<>(Arrays.asList(
+            "g]", "g[", "gc", "gp", "gg", "t[", "t]", "tt", "tp", "tc"));
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -502,7 +503,8 @@ public class Main implements GLEventListener {
                     for (int l = 0; l < 6; l++) {
                         int ni = i + adj3d[l][0], nj = j + adj3d[l][1], nk = k + adj3d[l][2];
                         if (insideWaterMap(ni, nj, nk)) {
-                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * timeStep;
+                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * Math.min(timeStep / 2, 1.0 / 16);
+                            flow = Math.min(waterMap[i][j][k] / 16, Math.max(-waterMap[ni][nj][nk] / 16, flow));
                             waterMap[i][j][k] -= flow;
                             waterMap[ni][nj][nk] += flow;
                         }
@@ -583,8 +585,8 @@ public class Main implements GLEventListener {
                 commandCount = 0;
             }
             if (commands.contains(commandBuffer)) {
-                commandCount = Math.max(1, Math.min(commandCount, 100));
-                for (int i = 0; i < Math.min(commandCount, 100); i++)
+                commandCount = Math.max(1, Math.min(commandCount, 1000));
+                for (int i = 0; i < commandCount; i++)
                     processCommand(commandBuffer);
                 commandBuffer = "";
                 commandCount = 0;
@@ -635,13 +637,20 @@ public class Main implements GLEventListener {
             case 't':
                 switch (type.charAt(1)) {
                     case ']':
-                        timeFactor *= 1.01;
+                        timeFactor *= 1.1;
                         break;
                     case '[':
-                        timeFactor /= 1.01;
+                        timeFactor /= 1.1;
                         break;
                     case 't':
                         timeFactor = 1;
+                        break;
+                    case 'p':
+                        oldTimeFactor = timeFactor;
+                        timeFactor = 0;
+                        break;
+                    case 'c':
+                        timeFactor = oldTimeFactor;
                         break;
                 }
                 break;
@@ -692,7 +701,7 @@ public class Main implements GLEventListener {
             plant1.absorb();
             plant1.photosynthesis();
             plant1.flow();
-//            plant1.grow();
+            plant1.modelGrow();
             plant1.root.dfs(time, gl);
         }
         flowWater();
@@ -708,20 +717,16 @@ public class Main implements GLEventListener {
         }
         seeds.removeIf(seed -> seed.pos.y < 0);
         drawWater(gl);
-        renderer.beginRendering(drawable.getSurfaceWidth(), drawable.getSurfaceHeight());
-        renderer.setColor(0, 1, 0.4f, 0.9f);
-        renderer.draw("Total light received: " + plant.getLight(), 5, 5);
-        renderer.draw((commandCount == 0 ? commandBuffer : commandCount + commandBuffer), 5, 20);
+        typer.put(commandCount == 0 ? commandBuffer : commandCount + commandBuffer);
+        typer.put("Speed: " + timeFactor);
+        typer.put("Total light received: " + plant.getLight());
+        typer.setParams(5, 5, -1, -1, -1);
+        typer.draw(drawable);
         if (selectedObject != null) {
-            String[] selectedInfo = selectedObject.info();
-            double textY = windowHeight - 10;
-            for (String str : selectedInfo) {
-                Rectangle2D rect = renderer.getBounds(str);
-                textY -= rect.getHeight();
-                renderer.draw(str, (int) (windowWidth - rect.getWidth() - 7), (int) textY);
-            }
+            typer.put(selectedObject.info());
+            typer.setParams(windowWidth, windowHeight, 1, 1, 1);
+            typer.draw(drawable);
         }
-        renderer.endRendering();
         float[] light_dir = {(float) sunDir.x, (float) sunDir.y, (float) sunDir.z};
         gl.glLightfv(GL2.GL_LIGHT0  , GL2.GL_POSITION, light_dir, 0);
     }
@@ -759,7 +764,7 @@ public class Main implements GLEventListener {
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_SPECULAR, new float[] {1, 1, 1, 0}, 0);
         gl.glLightfv(GL2.GL_LIGHT0, GL2.GL_AMBIENT, new float[] {0.4f, 0.4f, 0.4f, 0}, 0);
         gl.glEnable(GL2.GL_LIGHT0);
-        renderer = new TextRenderer(new Font("SansSerif", Font.PLAIN, 16));
+        typer = new TextTyper();
         int pos = 0;
         for (int i = 0; i <= waterMapSize; i++)
             for (int j = 0; j <= waterMapSize; j++)
