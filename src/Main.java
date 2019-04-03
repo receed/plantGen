@@ -1,17 +1,20 @@
+import com.jogamp.common.nio.Buffers;
 import com.jogamp.opengl.*;
 import com.jogamp.opengl.awt.GLCanvas;
 
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
-import java.util.function.Consumer;
 
 import com.jogamp.opengl.glu.GLU;
 import com.jogamp.opengl.util.FPSAnimator;
@@ -20,7 +23,6 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 
 import com.jogamp.opengl.GL2GL3;
-import com.jogamp.opengl.util.awt.TextRenderer;
 
 
 public class Main implements GLEventListener {
@@ -74,6 +76,13 @@ public class Main implements GLEventListener {
     static int commandCount = 0;
     static HashSet<String> commands = new HashSet<>(Arrays.asList(
             "g]", "g[", "gc", "gp", "gg", "t[", "t]", "tt", "tp", "tc"));
+    static FloatBuffer g_vertex_buffer_data = FloatBuffer.wrap(new float[] {
+            -1.0f, -1.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f,
+            0.0f,  1.0f, 0.0f, 1.0f,
+    });
+    static IntBuffer vertexBuffer = IntBuffer.allocate(1);
+    private int program;
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -197,6 +206,55 @@ public class Main implements GLEventListener {
             }
             gl.glEnd();
         }
+    }
+
+    int loadShader(GL2 gl, int type, String path) {
+        int shader = gl.glCreateShader(type);
+        try {
+            String source = new String(Files.readAllBytes(Paths.get(path)));
+            gl.glShaderSource(shader, 1, new String[] {source}, null);
+            gl.glCompileShader(shader);
+            IntBuffer isCompiled = IntBuffer.allocate(1);
+            gl.glGetShaderiv(shader, GL2ES2.GL_COMPILE_STATUS, isCompiled);
+            if (isCompiled.get(0) == GL.GL_FALSE) {
+                IntBuffer maxLength = IntBuffer.allocate(1);
+                gl.glGetShaderiv(shader, GL2ES2.GL_INFO_LOG_LENGTH, maxLength);
+                ByteBuffer infoLog = ByteBuffer.allocate(maxLength.get(0));
+                gl.glGetShaderInfoLog(shader, maxLength.get(0), maxLength, infoLog);
+                System.out.println(new String(infoLog.array(), StandardCharsets.UTF_8));
+                gl.glDeleteShader(shader);
+            }
+        }
+        catch (IOException e) {
+            System.out.println("No shader file\n" + e.getMessage());
+        }
+        return shader;
+    }
+
+    int buildProgram(GL2 gl) {
+        int program = gl.glCreateProgram();
+        int vertexShader = loadShader(gl, GL2ES2.GL_VERTEX_SHADER, "vertexShader.glsl");
+        gl.glAttachShader(program, vertexShader);
+        int fragmentShader = loadShader(gl, GL2ES2.GL_FRAGMENT_SHADER, "fragmentShader.glsl");
+        gl.glAttachShader(program, fragmentShader);
+        gl.glLinkProgram(program);
+        IntBuffer isLinked = IntBuffer.allocate(1);
+        gl.glGetProgramiv(program, GL2ES2.GL_LINK_STATUS, isLinked);
+        if (isLinked.get(0) == GL2ES2.GL_FALSE) {
+            IntBuffer maxLength = IntBuffer.allocate(1);
+            gl.glGetProgramiv(program, GL2ES2.GL_INFO_LOG_LENGTH, maxLength);
+            ByteBuffer infoLog = ByteBuffer.allocate(maxLength.get(0));
+            gl.glGetShaderInfoLog(program, maxLength.get(0), maxLength, infoLog);
+            System.out.println(new String(infoLog.array(), StandardCharsets.UTF_8));
+            gl.glDeleteProgram(program);
+            gl.glDeleteShader(vertexShader);
+            gl.glDeleteShader(fragmentShader);
+            return -1;
+        }
+        gl.glDetachShader(program, vertexShader);
+        gl.glDetachShader(program, fragmentShader);
+        gl.glValidateProgram(program);
+        return program;
     }
 
     static Vector3 getVector3(int x, int y) {
@@ -657,6 +715,20 @@ public class Main implements GLEventListener {
         }
     }
 
+    void shaderTest(GL2 gl) {
+        gl.glDisable(GL2.GL_LIGHTING);
+        gl.glDisable(GL2.GL_BLEND);
+        gl.glUseProgram(program);
+        gl.glEnableVertexAttribArray(0);
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, vertexBuffer.get(0));
+        gl.glVertexAttribPointer(0, 4, GL.GL_FLOAT, false, 0, 0);
+        gl.glDrawArrays(GL.GL_TRIANGLES, 0, 3);
+        gl.glDisableVertexAttribArray(0);
+        gl.glUseProgram(0);
+        gl.glEnable(GL2.GL_LIGHTING);
+        gl.glEnable(GL2.GL_BLEND);
+    }
+
     @Override
     public void display( GLAutoDrawable drawable) {
 
@@ -665,8 +737,9 @@ public class Main implements GLEventListener {
         gl.glLoadIdentity();
         oldTime = time;
         time = System.currentTimeMillis();
-        if (oldTime == 0)
+        if (oldTime == 0) {
             oldTime = time;
+        }
         timeDelta = Math.min(time - oldTime, 100);
         timeStep = timeDelta * timeFactor / 1000;
         camera.strafeFB(strafeFB * 0.0025 * timeDelta);
@@ -682,40 +755,44 @@ public class Main implements GLEventListener {
 //        camera.look(glu);
 //        ball.setSpeed(camera.dir);
 
-        if (fill)
+        if (fill) {
             gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2GL3.GL_FILL);
-        else
+        }
+        else {
             gl.glPolygonMode(GL2.GL_FRONT_AND_BACK, GL2GL3.GL_LINE);
+        }
 
 
         Vector3 sunDir = new Vector3(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 10, 0);
-//        ball.setSpeed(camera.dir.x * ballZ,
-//                camera.dir.cross(camera.up).z * -ballX);
         camera.look(glu);
-//        ball.move(0.1, gl);
-        drawMousePointer(gl);
+        shaderTest(gl);
 //        landscape(gl);
-        for (Plant plant1 : plants) {
-            plant1.water = 0;
-            plant1.countLeafSquares();
-            plant1.absorb();
-            plant1.photosynthesis();
-            plant1.flow();
-            plant1.modelGrow();
-            plant1.root.dfs(time, gl);
-        }
-        flowWater();
-//        camera.pos = ball.pos.add(camera.dir.mul(-2));
-        skybox(gl);
-        getLighting(plants, sunAxis, sunAngle, 1);
-        drawSun(sunDir, gl);
-        for (Seed seed : seeds) {
-            seed.move();
-            seed.draw(gl);
-            if (seed.pos.y < 0 && Math.abs(seed.pos.x) < waterSize / 2 && Math.abs(seed.pos.z) < waterSize / 2)
-                plants.add(new Plant(seed));
+        if (timeFactor > eps) {
+            for (Plant plant1 : plants) {
+                plant1.water = 0;
+                plant1.countLeafSquares();
+                plant1.absorb();
+                plant1.photosynthesis();
+                plant1.flow();
+                plant1.modelGrow();
+
+            }
+            flowWater();
+            getLighting(plants, sunAxis, sunAngle, 1);
+            for (Seed seed : seeds) {
+                seed.move();
+                seed.draw(gl);
+                if (seed.pos.y < 0 && Math.abs(seed.pos.x) < waterSize / 2 && Math.abs(seed.pos.z) < waterSize / 2) {
+                    plants.add(new Plant(seed));
+                }
+            }
         }
         seeds.removeIf(seed -> seed.pos.y < 0);
+        for (Plant plant1 : plants)
+            plant1.root.dfs(time, gl);
+        drawMousePointer(gl);
+        skybox(gl);
+        drawSun(sunDir, gl);
         drawWater(gl);
         typer.put(commandCount == 0 ? commandBuffer : commandCount + commandBuffer);
         typer.put("Speed: " + timeFactor);
@@ -779,6 +856,11 @@ public class Main implements GLEventListener {
         camera.strafeFB(-5);
         camera.rotLR(-Math.PI / 8);
         camera.rotUD(Math.PI / 16);
+
+        gl.glGenBuffers(1, vertexBuffer);
+        gl.glBindBuffer(GL2.GL_ARRAY_BUFFER, vertexBuffer.get(0));
+        gl.glBufferData(GL.GL_ARRAY_BUFFER, Buffers.SIZEOF_FLOAT * 4 * 3, g_vertex_buffer_data, GL.GL_STATIC_DRAW);
+        program = buildProgram(gl);
     }
 
     @Override
@@ -895,11 +977,6 @@ public class Main implements GLEventListener {
                     case KeyEvent.VK_LEFT:
                     case KeyEvent.VK_RIGHT:
                         ballX = 0; break;
-//                    case KeyEvent.VK_P:
-//                        if (Main.selectedObject instanceof Joint) {
-//                            Main.select(((Joint) Main.selectedObject).parent());
-//                        }
-//                    break;
                     case KeyEvent.VK_ESCAPE:
                         Main.commandCount = 0;
                         Main.commandBuffer = "";

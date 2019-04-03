@@ -1,9 +1,7 @@
 import com.jogamp.opengl.GL2;
 
-import javax.jws.WebParam;
 import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.Random;
 
 public class Joint extends Clickable {
     double absorbLength = 0.5, absorbRate = 0.1;
@@ -107,8 +105,8 @@ public class Joint extends Clickable {
     Leaf modelGenLeaf() {
         Vector3 par = parentEdge == null ? new Vector3() : pos.sub(parentEdge.to.pos);
         double[] plan = plant.leafModel.apply(pos.x, pos.y, pos.z, par.x, par.y, par.z, water, glucose);
-        Vector3 a = new Vector3(plan[0], -Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
-        Vector3 b = new Vector3(plan[4], -Math.abs(plan[5]), plan[6]).norm(0.01 + 0.04 * Model.logistic(plan[7]));
+        Vector3 a = new Vector3(plan[0], Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
+        Vector3 b = new Vector3(plan[4], Math.abs(plan[5]), plan[6]).norm(0.01 + 0.04 * Model.logistic(plan[7]));
         Joint joint1 = new Joint(plant, pos.add(a)), joint2 = new Joint(plant, pos.add(b));
         return addLeaf(addEdge(joint1, 0.01), addEdge(joint2, 0.01));
     }
@@ -137,7 +135,7 @@ public class Joint extends Clickable {
     Edge modelGenRoot() {
         Vector3 par = parentEdge == null ? new Vector3() : pos.sub(parentEdge.to.pos);
         double[] plan = plant.rootModel.apply(pos.x, pos.y, pos.z, par.x, par.y, par.z, water, glucose);
-        Vector3 a = new Vector3(plan[0], Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
+        Vector3 a = new Vector3(plan[0], -Math.abs(plan[1]), plan[2]).norm(0.01 + 0.04 * Model.logistic(plan[3]));
         return addEdge(new Joint(plant, pos.add(a)), 0.01);
     }
     void genRoots(double prob, double probFactor1, double probFactor2) {
