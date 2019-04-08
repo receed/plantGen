@@ -1,10 +1,12 @@
+import com.jogamp.opengl.GL2;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class Plant {
     Joint root;
     LinkedList<Leaf> leaves = new LinkedList<>();
-    LinkedList<Joint> joints = new LinkedList<>();
+    ArrayList<Joint> joints = new ArrayList<>();
     Model leafModel, rootModel;
     double water = 0;
 
@@ -53,12 +55,12 @@ public class Plant {
     }
 
     void randomGrow() {
-        for (Joint joint : new LinkedList<>(joints))
+        for (Joint joint : new ArrayList<>(joints))
             joint.randomGrow();
         root.grow();
     }
     void modelGrow() {
-        for (Joint joint : new LinkedList<>(joints))
+        for (Joint joint : new ArrayList<>(joints))
             joint.modelGrow();
         root.grow();
     }
@@ -68,5 +70,19 @@ public class Plant {
     void countLeafSquares() {
         for (Leaf leaf : leaves)
             leaf.countSquare();
+    }
+    void draw(GL2 gl) {
+        for (Joint joint : joints)
+            joint.draw(gl);
+    }
+    void countMoments() {
+        for (int i = joints.size() - 1; i >= 0; i--)
+            if (joints.get(i).pos.y > 0)
+                joints.get(i).countMoments();
+        for (Joint joint : joints)
+            if (joint.criticalMass)
+                for (Edge edge : joint.edges)
+                    if (!edge.isRoot())
+                        edge.to.criticalMass = true;
     }
 }

@@ -25,6 +25,7 @@ import javax.swing.*;
 import com.jogamp.opengl.GL2GL3;
 
 
+
 public class Main implements GLEventListener {
 
     public static DisplayMode dm, dm_old;
@@ -43,7 +44,7 @@ public class Main implements GLEventListener {
     static long time = 0, oldTime = 0, timeDelta = 0;
     static double timeStep = 0, timeFactor = 1, oldTimeFactor = 1;
     static double[][] height = new double[widthMap][heightMap];
-    static final int bufferSize = 500;
+    static final int bufferSize = 300;
     static double[][] maxHeight = new double[bufferSize][bufferSize];
     static Leaf[][] highestLeaf = new Leaf[bufferSize][bufferSize];
     static final int[][] adj = {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0},
@@ -64,12 +65,13 @@ public class Main implements GLEventListener {
     static boolean[][][] absorbed = new boolean[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
     static double maxWaterInDrop = 0.0013;
-    static LinkedList<Seed> seeds = new LinkedList<>();
+    static ArrayList<Seed> seeds = new ArrayList<>();
     static double humidity = 0.7, gravity = 9.8, waterDensity = 1;
     static double viewAngle = 45, distanceToScreen;
     static int windowWidth, windowHeight;
     static Vector3 mouseVector;
     static Clickable clickedObject, selectedObject;
+    static double worldRadius = 10;
     static double clickedObjectDistance;
     static double eps = 1e-10;
     static String commandBuffer = "";
@@ -83,6 +85,10 @@ public class Main implements GLEventListener {
     });
     static IntBuffer vertexBuffer = IntBuffer.allocate(1);
     private int program;
+
+    static void vertex(GL2 gl, Vector3 v) {
+        gl.glVertex3d(v.x, v.y, v.z);
+    }
 
     private void tetraedr(GL2 gl){
         gl.glBegin(GL2.GL_TRIANGLES);
@@ -215,44 +221,50 @@ public class Main implements GLEventListener {
             gl.glShaderSource(shader, 1, new String[] {source}, null);
             gl.glCompileShader(shader);
             IntBuffer isCompiled = IntBuffer.allocate(1);
-            gl.glGetShaderiv(shader, GL2ES2.GL_COMPILE_STATUS, isCompiled);
+            gl.glGetShaderiv(shader, GL3ES3.GL_COMPILE_STATUS, isCompiled);
             if (isCompiled.get(0) == GL.GL_FALSE) {
                 IntBuffer maxLength = IntBuffer.allocate(1);
-                gl.glGetShaderiv(shader, GL2ES2.GL_INFO_LOG_LENGTH, maxLength);
+                gl.glGetShaderiv(shader, GL3ES3.GL_INFO_LOG_LENGTH, maxLength);
                 ByteBuffer infoLog = ByteBuffer.allocate(maxLength.get(0));
                 gl.glGetShaderInfoLog(shader, maxLength.get(0), maxLength, infoLog);
+                System.out.println("error in shader " + path);
                 System.out.println(new String(infoLog.array(), StandardCharsets.UTF_8));
                 gl.glDeleteShader(shader);
             }
         }
         catch (IOException e) {
-            System.out.println("No shader file\n" + e.getMessage());
+            System.out.println("no shader file " + path);
         }
         return shader;
     }
 
     int buildProgram(GL2 gl) {
         int program = gl.glCreateProgram();
-        int vertexShader = loadShader(gl, GL2ES2.GL_VERTEX_SHADER, "vertexShader.glsl");
+        int vertexShader = loadShader(gl, GL3ES3.GL_VERTEX_SHADER, "vertexShader.glsl");
         gl.glAttachShader(program, vertexShader);
-        int fragmentShader = loadShader(gl, GL2ES2.GL_FRAGMENT_SHADER, "fragmentShader.glsl");
+        int fragmentShader = loadShader(gl, GL3ES3.GL_FRAGMENT_SHADER, "fragmentShader.glsl");
         gl.glAttachShader(program, fragmentShader);
+//        int geometryShader = loadShader(gl, GL3ES3.GL_GEOMETRY_SHADER, "geometryShader.glsl");
+//        gl.glAttachShader(program, geometryShader);
         gl.glLinkProgram(program);
         IntBuffer isLinked = IntBuffer.allocate(1);
-        gl.glGetProgramiv(program, GL2ES2.GL_LINK_STATUS, isLinked);
-        if (isLinked.get(0) == GL2ES2.GL_FALSE) {
+        gl.glGetProgramiv(program, GL3ES3.GL_LINK_STATUS, isLinked);
+        if (isLinked.get(0) == GL3ES3.GL_FALSE) {
             IntBuffer maxLength = IntBuffer.allocate(1);
-            gl.glGetProgramiv(program, GL2ES2.GL_INFO_LOG_LENGTH, maxLength);
+            gl.glGetProgramiv(program, GL3ES3.GL_INFO_LOG_LENGTH, maxLength);
             ByteBuffer infoLog = ByteBuffer.allocate(maxLength.get(0));
             gl.glGetShaderInfoLog(program, maxLength.get(0), maxLength, infoLog);
+            System.out.println("failed to link program");
             System.out.println(new String(infoLog.array(), StandardCharsets.UTF_8));
             gl.glDeleteProgram(program);
             gl.glDeleteShader(vertexShader);
             gl.glDeleteShader(fragmentShader);
+//            gl.glDeleteShader(geometryShader);
             return -1;
         }
         gl.glDetachShader(program, vertexShader);
         gl.glDetachShader(program, fragmentShader);
+//        gl.glDetachShader(program, geometryShader);
         gl.glValidateProgram(program);
         return program;
     }
@@ -472,11 +484,11 @@ public class Main implements GLEventListener {
 
     static void waterVertex(int i, int j, int k, double step, double depthStep, GL2 gl) {
         if (!absorbed[i][j][k]) {
-            double alpha = 0.5 * waterMap[i][j][k] / maxWaterInDrop;
+            double alpha = 0.8 * Math.min(waterMap[i][j][k] / maxWaterInDrop, 1);
             gl.glColor4d(0, 0, 1, alpha);
         }
         else
-            gl.glColor4d(0.6, 0, 0.4, 1);
+            gl.glColor4d(1, 0, 0, 1);
         gl.glVertex3d((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
     }
 
@@ -525,6 +537,7 @@ public class Main implements GLEventListener {
             if (i >= 2 && i < waterMapSize - 2 && j >= 2 && j < waterMapSize - 2 && k >= 2 && k < waterMapSize - 2)
                 continue;
             if (i < waterMapSize && j < waterMapSize) {
+                gl.glNormal3d(0, 1, 0);
                 gl.glBegin(GL2.GL_QUADS);
                 waterVertex(i, j, k, step, depthStep, gl);
                 waterVertex(i, j + 1, k, step, depthStep, gl);
@@ -532,7 +545,8 @@ public class Main implements GLEventListener {
                 waterVertex(i + 1, j, k, step, depthStep, gl);
                 gl.glEnd();
             }
-            if (j < waterMapSize && k < waterMapSize) {
+            if (j < waterMapSize && k < waterMapDepth) {
+                gl.glNormal3d(1, 0, 0);
                 gl.glBegin(GL2.GL_QUADS);
                 waterVertex(i, j, k, step, depthStep, gl);
                 waterVertex(i, j + 1, k, step, depthStep, gl);
@@ -540,7 +554,8 @@ public class Main implements GLEventListener {
                 waterVertex(i, j, k + 1, step, depthStep, gl);
                 gl.glEnd();
             }
-            if (k < waterMapSize && i < waterMapSize) {
+            if (k < waterMapDepth && i < waterMapSize) {
+                gl.glNormal3d(0, 0, 1);
                 gl.glBegin(GL2.GL_QUADS);
                 waterVertex(i, j, k, step, depthStep, gl);
                 waterVertex(i + 1, j, k, step, depthStep, gl);
@@ -729,9 +744,24 @@ public class Main implements GLEventListener {
         gl.glEnable(GL2.GL_BLEND);
     }
 
+    static void line(GL2 gl, Vector3 point1, Vector3 point2, double width) {
+        Vector3 d = point2.sub(point1).cross(camera.dir).norm(width / 2);
+        gl.glBegin(gl.GL_QUADS);
+        vertex(gl, point1.add(d));
+        vertex(gl, point1.sub(d));
+        vertex(gl, point2.sub(d));
+        vertex(gl, point2.add(d));
+        gl.glEnd();
+    }
+
+    static void addWater() {
+        for (int i = 0; i <= waterMapSize; i++)
+            for (int j = 0; j <= waterMapSize; j++)
+                waterMap[i][j][waterMapDepth] += random.nextDouble() * timeStep * maxWaterInDrop * 0.01;
+    }
+
     @Override
     public void display( GLAutoDrawable drawable) {
-
         final GL2 gl = drawable.getGL().getGL2();
         gl.glClear(GL2.GL_COLOR_BUFFER_BIT | GL2.GL_DEPTH_BUFFER_BIT );
         gl.glLoadIdentity();
@@ -765,7 +795,6 @@ public class Main implements GLEventListener {
 
         Vector3 sunDir = new Vector3(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 10, 0);
         camera.look(glu);
-        shaderTest(gl);
 //        landscape(gl);
         if (timeFactor > eps) {
             for (Plant plant1 : plants) {
@@ -774,27 +803,43 @@ public class Main implements GLEventListener {
                 plant1.absorb();
                 plant1.photosynthesis();
                 plant1.flow();
+                plant1.countMoments();
                 plant1.modelGrow();
-
             }
+            addWater();
             flowWater();
             getLighting(plants, sunAxis, sunAngle, 1);
+            int freeSeeds = (int) seeds.stream().filter(seed -> seed.linkTimeLeft <= 0).count();
+            if (freeSeeds > 1 && random.nextDouble() < Seed.swapProbability * timeStep * freeSeeds * (freeSeeds - 1) / 2) {
+                int pos1 = random.nextInt(freeSeeds), pos2 = random.nextInt(freeSeeds - 1);
+                if (pos2 == pos1)
+                    pos2++;
+                Seed seed1 = seeds.stream().filter(seed -> seed.linkTimeLeft <= 0).skip(pos1).findFirst().orElse(null);
+                Seed seed2 = seeds.stream().filter(seed -> seed.linkTimeLeft <= 0).skip(pos2).findFirst().orElse(null);
+                seed1.swap(seed2);
+            }
             for (Seed seed : seeds) {
                 seed.move();
-                seed.draw(gl);
-                if (seed.pos.y < 0 && Math.abs(seed.pos.x) < waterSize / 2 && Math.abs(seed.pos.z) < waterSize / 2) {
+                if (seed.pos.y <= 0 && Math.abs(seed.pos.x) < waterSize / 2 && Math.abs(seed.pos.z) < waterSize / 2) {
+                    seed.detach();
                     plants.add(new Plant(seed));
+                }
+                else if (seed.pos.len() > worldRadius) {
+                    seed.detach();
                 }
             }
         }
-        seeds.removeIf(seed -> seed.pos.y < 0);
+        seeds.removeIf(seed -> seed.pos.y <= 0);
+        for (Seed seed : seeds)
+            seed.draw(gl);
         for (Plant plant1 : plants)
-            plant1.root.dfs(time, gl);
+            plant1.draw(gl);
         drawMousePointer(gl);
         skybox(gl);
         drawSun(sunDir, gl);
         drawWater(gl);
         typer.put(commandCount == 0 ? commandBuffer : commandCount + commandBuffer);
+        typer.put(plants.get(0).joints.size() + " joints");
         typer.put("Speed: " + timeFactor);
         typer.put("Total light received: " + plant.getLight());
         typer.setParams(5, 5, -1, -1, -1);
@@ -817,6 +862,7 @@ public class Main implements GLEventListener {
     public void init( GLAutoDrawable drawable ) {
 
         final GL2 gl = drawable.getGL().getGL2();
+//        final GL3 gl3 = drawable.getGL().getGL3();
         gl.glShadeModel( GL2.GL_SMOOTH );
         gl.glClearColor( 0f, 0f, 0f, 0f );
         gl.glClearDepth( 1.0f );
@@ -860,7 +906,7 @@ public class Main implements GLEventListener {
         gl.glGenBuffers(1, vertexBuffer);
         gl.glBindBuffer(GL2.GL_ARRAY_BUFFER, vertexBuffer.get(0));
         gl.glBufferData(GL.GL_ARRAY_BUFFER, Buffers.SIZEOF_FLOAT * 4 * 3, g_vertex_buffer_data, GL.GL_STATIC_DRAW);
-        program = buildProgram(gl);
+//        program = buildProgram(gl);
     }
 
     @Override

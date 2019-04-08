@@ -42,14 +42,21 @@ public class Leaf extends Clickable {
     }
 
     void draw(GL2 gl) {
+        boolean special = true;
         if (selected) {
             gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {1, 0, 0, 1}, 0);
             gl.glColor3d(1, 0, 0);
         }
+        else if (joint.criticalMass)
+            gl.glColor3d(0, 1, 1);
         else if (lacksWater)
             gl.glColor3d(0.59, 0.16, 0.11);
-        else
+        else {
             gl.glColor3d(0.25, 1, 0.1);
+            special = false;
+        }
+        if (special)
+            gl.glDisable(GL2.GL_LIGHTING);
         Vector3 n = joint.pos.normal(edges.get(0).to.pos, edges.get(1).to.pos);
         gl.glNormal3d(n.x, n.y, n.z);
         gl.glBegin(GL2.GL_TRIANGLE_FAN);
@@ -59,6 +66,8 @@ public class Leaf extends Clickable {
         gl.glEnd();
         if (selected)
             gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_EMISSION, new float[] {0, 0, 0, 1}, 0);
+        if (special)
+            gl.glEnable(GL2.GL_LIGHTING);
     }
     @Override
     public double distByRay(Vector3 from, Vector3 dir) {

@@ -104,4 +104,7 @@ class Vector3 {
             return Double.POSITIVE_INFINITY;
         return ans;
     }
+    Vector3 reflectUp() {
+        return new Vector3(x, Math.abs(y), z);
+    }
 }

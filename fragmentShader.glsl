@@ -1,4 +1,4 @@
-#version 140
+#version 130
 
 out vec3 color;
 void main(){
