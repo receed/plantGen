@@ -49,9 +49,18 @@ public class Plant {
     }
 
     void photosynthesis() {
+        for (Joint joint : joints) {
+            for (Leaf leaf : joint.leaves) {
+                if (joint.deleted)
+                    leaf.detach();
+                else
+                    leaf.photosynthesis(1e9);
+            }
+        }
+        joints.removeIf(joint -> joint.deleted);
+        leaves.removeIf(leaf -> leaf.deleted);
         for (Joint joint : joints)
-            for (Leaf leaf : joint.leaves)
-                leaf.photosynthesis(1e9);
+            joint.edges.removeIf(edge -> edge.to.deleted);
     }
 
     void randomGrow() {

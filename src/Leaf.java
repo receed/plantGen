@@ -4,10 +4,11 @@ import sun.font.TrueTypeFont;
 import java.util.ArrayList;
 
 public class Leaf extends Clickable {
-    double light = 0, square = 0, glucoseSynthesized;
+    double light = 0, square = 0, glucoseSynthesized, lightSum = 0, lifetime = 0, energySaving = 0.999;
+    double minLight = 0.2, waterLackTime, maxWaterLackTime = 20;
     static double evaporationRate = 0.1, waterPerGlucose = (12.0 + 16 * 2) / (12 + 2 + 16), lightPerGlucose = 1000;
     static double glucosePerSquare = 0.03, minCost = Math.pow(0.05, 2) / 2 * glucosePerSquare;
-    boolean lacksWater = false;
+    boolean lacksWater = false, deleted = false;
     Joint joint;
     ArrayList<Edge> edges = new ArrayList<>();
     Plant plant;
@@ -18,19 +19,29 @@ public class Leaf extends Clickable {
     }
 
     void countSquare() {
+        double oldSquare = square;
         square = 0;
         for (int i = 0; i + 1 < edges.size(); i++)
             square += joint.pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
+        if (oldSquare > 0)
+            lightSum = lightSum * square / oldSquare;
     }
 
     void evaporate() {
         double evaporated = square * evaporationRate * (1 - Main.humidity) * Main.timeStep;
         if (evaporated < joint.water) {
-            lacksWater = true;
+            if (!lacksWater) {
+                lacksWater = true;
+                waterLackTime = 0;
+            }
+            waterLackTime += Main.timeStep;
+            if (waterLackTime > maxWaterLackTime)
+                detach();
             joint.water = 0;
         }
         else {
             lacksWater = false;
+            waterLackTime = 0;
             joint.water -= evaporated;
         }
     }
@@ -39,6 +50,10 @@ public class Leaf extends Clickable {
         glucoseSynthesized = Math.min(Math.min(maxWater, joint.water) / waterPerGlucose, light / lightPerGlucose);
         joint.water -= glucoseSynthesized * waterPerGlucose;
         joint.glucose += glucoseSynthesized;
+        lightSum = lightSum * Math.pow(energySaving, Main.timeStep) + light;
+        lifetime += Main.timeStep;
+        if (lifetime > 60 && lightSum < square * minLight)
+            detach();
     }
 
     void draw(GL2 gl) {
@@ -89,5 +104,10 @@ public class Leaf extends Clickable {
         for (Edge edge : edges)
             list.add(edge.to.pos);
         return list;
+    }
+    void detach() {
+        deleted = true;
+        for (Edge edge : edges)
+            edge.to.deleted = true;
     }
 }

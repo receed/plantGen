@@ -64,7 +64,7 @@ public class Main implements GLEventListener {
     static double[][][] waterMapOld = new double[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static boolean[][][] absorbed = new boolean[waterMapSize + 1][waterMapSize + 1][waterMapDepth + 1];
     static int[][] waterOrder = new int[(waterMapSize + 1) * (waterMapSize + 1) * (waterMapDepth + 1)][3];
-    static double maxWaterInDrop = 0.0013;
+    static double maxWaterInDrop = 0.0004;
     static ArrayList<Seed> seeds = new ArrayList<>();
     static double humidity = 0.7, gravity = 9.8, waterDensity = 1;
     static double viewAngle = 45, distanceToScreen;
@@ -483,12 +483,11 @@ public class Main implements GLEventListener {
     }
 
     static void waterVertex(int i, int j, int k, double step, double depthStep, GL2 gl) {
-        if (!absorbed[i][j][k]) {
-            double alpha = 0.8 * Math.min(waterMap[i][j][k] / maxWaterInDrop, 1);
-            gl.glColor4d(0, 0, 1, alpha);
-        }
-        else
+        double alpha = 1 * Math.min(waterMap[i][j][k] / maxWaterInDrop, 1);
+        if (absorbed[i][j][k])
             gl.glColor4d(1, 0, 0, 1);
+        else
+            gl.glColor4d(0, 0, 1, alpha);
         gl.glVertex3d((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
     }
 
@@ -508,34 +507,15 @@ public class Main implements GLEventListener {
 //                    sphere(gl, 3);
 //                    gl.glPopMatrix();
 //                }
-        Arrays.sort(waterOrder, new Comparator<int[]>() {
-            @Override
-            public int compare(int[] t1, int[] t2) {
-                double d = camera.pos.dist(new Vector3(t1[0], t1[1], t1[2])) -
-                        camera.pos.dist(new Vector3(t2[0], t2[1], t2[2]));
-                return Double.compare(0, d);
-            }
+        Arrays.sort(waterOrder, (t1, t2) -> {
+            double d = camera.pos.dist(new Vector3(t1[0], t1[1], t1[2])) -
+                    camera.pos.dist(new Vector3(t2[0], t2[1], t2[2]));
+            return Double.compare(0, d);
         });
-//        for (int[] drop : waterOrder) {
-//            int i = drop[0], j = drop[1], k = drop[2];
-//            if (!absorbed[i][j][k]) {
-//                double alpha = 0.5 * waterMap[i][j][k] / maxWaterInDrop;
-//                gl.glColor4d(0, 0, 1, alpha);
-//            }
-//            else
-//                gl.glColor4d(0.6, 0, 0.4, 1);
-//            gl.glPushMatrix();
-//            gl.glTranslated((i - waterMapSize / 2) * step, -k * depthStep, (j - waterMapSize / 2) * step);
-//
-//            double r = Math.pow(waterMap[i][j][k] / (Math.PI * 4 / 3), 1.0 / 3);
-//            gl.glScaled(step, depthStep, step);
-//            cube(gl);
-//            gl.glPopMatrix();
-//        }
         for (int[] drop : waterOrder) {
             int i = drop[0], j = drop[1], k = drop[2];
-            if (i >= 2 && i < waterMapSize - 2 && j >= 2 && j < waterMapSize - 2 && k >= 2 && k < waterMapSize - 2)
-                continue;
+//            if (i >= 2 && i < waterMapSize - 2 && j >= 2 && j < waterMapSize - 2 && k >= 2 && k < waterMapSize - 2)
+//                continue;
             if (i < waterMapSize && j < waterMapSize) {
                 gl.glNormal3d(0, 1, 0);
                 gl.glBegin(GL2.GL_QUADS);
@@ -576,7 +556,10 @@ public class Main implements GLEventListener {
                     for (int l = 0; l < 6; l++) {
                         int ni = i + adj3d[l][0], nj = j + adj3d[l][1], nk = k + adj3d[l][2];
                         if (insideWaterMap(ni, nj, nk)) {
-                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * Math.min(timeStep / 2, 1.0 / 16);
+                            double flow = (waterMapOld[i][j][k] - waterMapOld[ni][nj][nk]) * Math.min(timeStep / 16, 1.0 / 16);
+                            if (i == 4 && j == 4 && k == 0 && nk == 1) {
+                                System.out.println(flow + " " + waterMapOld[i][j][j] + " " + waterMapOld[ni][nj][nk]);
+                            }
                             flow = Math.min(waterMap[i][j][k] / 16, Math.max(-waterMap[ni][nj][nk] / 16, flow));
                             waterMap[i][j][k] -= flow;
                             waterMap[ni][nj][nk] += flow;
@@ -797,6 +780,9 @@ public class Main implements GLEventListener {
         camera.look(glu);
 //        landscape(gl);
         if (timeFactor > eps) {
+            for (int i = 0; i <= waterMapSize; i++)
+                for (int j = 0; j <= waterMapSize; j++)
+                    Arrays.fill(absorbed[i][j], false);
             for (Plant plant1 : plants) {
                 plant1.water = 0;
                 plant1.countLeafSquares();
@@ -806,9 +792,9 @@ public class Main implements GLEventListener {
                 plant1.countMoments();
                 plant1.modelGrow();
             }
-            addWater();
+//            addWater();
             flowWater();
-            getLighting(plants, sunAxis, sunAngle, 1);
+            getLighting(plants, sunAxis, sunAngle, timeStep);
             int freeSeeds = (int) seeds.stream().filter(seed -> seed.linkTimeLeft <= 0).count();
             if (freeSeeds > 1 && random.nextDouble() < Seed.swapProbability * timeStep * freeSeeds * (freeSeeds - 1) / 2) {
                 int pos1 = random.nextInt(freeSeeds), pos2 = random.nextInt(freeSeeds - 1);

@@ -7,9 +7,9 @@ public class Joint extends Clickable {
     double absorbLength = 0.5, absorbRate = 0.1;
     Vector3 pos, growth;
     long visited = 0;
-    double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 0.0001, youngModulus = 2;
-    double totalGrowCost = 0, subtreeMass = 0, subtreeMoment = 0, maxMomentFactor = 1;
-    boolean criticalMass = false;
+    double water = 0, glucose = 0, waterDelta = 0, glucoseDelta = 0, volume = 0.001, youngModulus = 2;
+    double totalGrowCost = 0, subtreeMass = 0, subtreeMoment = 0, maxMomentFactor = 3;
+    boolean criticalMass = false, deleted = false;
 
     LinkedList<Leaf> leaves = new LinkedList<>();
     ArrayList<Edge> edges = new ArrayList<>();
@@ -163,6 +163,7 @@ public class Joint extends Clickable {
                 double absorbed = Math.min(Math.PI * edge.width * length * absorbRate * Main.timeStep, Main.waterMap[x][y][z] * 0.6);
                 water += absorbed;
                 Main.waterMap[x][y][z] -= absorbed;
+                Main.absorbed[x][y][z] = true;
             }
         }
     }
@@ -236,9 +237,9 @@ public class Joint extends Clickable {
             edge.growCost = edge.isRoot() ? edge.square() * Edge.glucosePerRoot : 0;
         for (Leaf leaf : leaves)
             for (int i = 0; i < leaf.edges.size() - 1; i++) {
-                double s = pos.square(edges.get(i).to.pos, edges.get(i + 1).to.pos);
-                leaf.edges.get(i).growCost += s / pos.dist(edges.get(i).to.pos) * Leaf.glucosePerSquare;
-                leaf.edges.get(i + 1).growCost += s / pos.dist(edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
+                double s = pos.square(leaf.edges.get(i).to.pos, leaf.edges.get(i + 1).to.pos);
+                leaf.edges.get(i).growCost += s / pos.dist(leaf.edges.get(i).to.pos) * Leaf.glucosePerSquare;
+                leaf.edges.get(i + 1).growCost += s / pos.dist(leaf.edges.get(i + 1).to.pos) * Leaf.glucosePerSquare;
             }
         for (Edge edge : edges)
             totalGrowCost += edge.growCost;
